@@ -10,7 +10,7 @@ namespace FinTechAPI.Controllers
         [Route("hello")]
         public IActionResult GetHelloMessage()
         {
-            return Ok(new { message = "Hello from FinTech API!", timestamp = DateTime.Now });
+            return Ok(new { message = "Hello from FinTech API!" });
         }
 
         [HttpGet]

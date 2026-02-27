@@ -1,5 +1,6 @@
 ﻿// AccountsController.cs
 using System.Security.Claims;
+using AutoMapper;
 using FinTechAPI.Data;
 using FinTechAPI.Models;
 using FinTechAPI.Services;
@@ -14,14 +15,14 @@ namespace FinTechAPI.Controllers
     public class AccountsController : ControllerBase
     {
         private readonly IAccountService _accountService;
-        private readonly FinTechDbContext _context;
+        private readonly IMapper _mapper;
 
         public AccountsController(
             IAccountService accountService,
-            FinTechDbContext context)
+            IMapper mapper)
         {
             _accountService = accountService;
-            _context = context;
+            _mapper = mapper;
         }
         
         private string GetCurrentUserId()
@@ -43,7 +44,7 @@ namespace FinTechAPI.Controllers
         }
         
         [HttpGet("{id}")]
-        public async Task<ActionResult<Account>> GetAccount(int id)
+        public async Task<ActionResult<AccountDto>> GetAccount(int id)
         {
             var userId = GetCurrentUserId();
             if (string.IsNullOrEmpty(userId))
@@ -57,10 +58,11 @@ namespace FinTechAPI.Controllers
             {
                 return NotFound(new { message = $"Account with ID {id} not found for the current user." });
             }
+            
+            var accountDto = _mapper.Map<AccountDto>(account);
 
-            return Ok(account);
+            return Ok(accountDto);
         }
-
         
         [HttpPost]
         public async Task<ActionResult<Account>> CreateAccount([FromBody] Account account) 
@@ -75,9 +77,8 @@ namespace FinTechAPI.Controllers
             
             return CreatedAtAction(nameof(GetAccount), new { id = createdAccount.Id }, createdAccount);
         }
-
         
-               [HttpPut("{id}")]
+        [HttpPut("{id}")]
         public async Task<IActionResult> UpdateAccount(int id, [FromBody] Account accountUpdateDetails) 
         {
             var userId = GetCurrentUserId();
@@ -123,11 +124,6 @@ namespace FinTechAPI.Controllers
             }
 
             return NoContent(); 
-        }
-        
-        private bool AccountExists(int id)
-        {
-            return _context.Accounts.Any(e => e.Id == id);
         }
     }
 }

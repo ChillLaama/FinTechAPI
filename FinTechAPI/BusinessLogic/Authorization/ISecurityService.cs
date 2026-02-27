@@ -1,6 +1,6 @@
 using FinTechAPI.Models;
 
-namespace FinTechAPI.Services;
+namespace FinTechAPI.BusinessLogic.Authorization;
 
 public interface ISecurityService
 {

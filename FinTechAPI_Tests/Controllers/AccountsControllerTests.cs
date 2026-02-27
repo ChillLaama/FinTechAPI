@@ -1,17 +1,16 @@
+using AutoMapper;
 using Moq;
 using FinTechAPI.Controllers;
 using FinTechAPI.Services;
 using FinTechAPI.Models;
 using Microsoft.AspNetCore.Mvc;
-using FinTechAPI.Data;
-using Microsoft.EntityFrameworkCore; // Для DbContextOptionsBuilder, если он нужен
 
 namespace FinTechAPI.Tests
 {
     public class AccountsControllerTests
     {
         private readonly Mock<IAccountService> _mockAccountService;
-        private readonly Mock<FinTechDbContext> _mockDbContext; // Может не понадобиться, если сервис полностью абстрагирует работу с DbContext
+        private readonly Mock<IMapper> _mockMapper;
         private readonly AccountsController _controller;
         private readonly string _testUserId = "test-user-id";
         private readonly string _testUserEmail = "test@example.com";
@@ -19,16 +18,9 @@ namespace FinTechAPI.Tests
         public AccountsControllerTests()
         {
             _mockAccountService = new Mock<IAccountService>();
-            
-            // Для FinTechDbContext, если он используется напрямую в контроллере (у вас используется)
-            // Если бы контроллер НЕ использовал FinTechDbContext напрямую, этот мок был бы не нужен.
-            var options = new DbContextOptionsBuilder<FinTechDbContext>()
-                .UseInMemoryDatabase(databaseName: "Test_AccountsController_Db")
-                .Options;
-            _mockDbContext = new Mock<FinTechDbContext>(options);
+            _mockMapper = new Mock<IMapper>();
 
-
-            _controller = new AccountsController(_mockAccountService.Object, _mockDbContext.Object);
+            _controller = new AccountsController(_mockAccountService.Object, _mockMapper.Object);
             _controller.ControllerContext = new ControllerContext
             {
                 HttpContext = ControllerTestHelpers.CreateHttpContext(_testUserId, _testUserEmail)
@@ -62,15 +54,19 @@ namespace FinTechAPI.Tests
             // Arrange
             var accountId = 1;
             var account = new Account { Id = accountId, Name = "Test Account", UserId = _testUserId, Balance = 100, AccountType = AccountType.Checking, Currency = Currency.USD };
+            var accountDto = new AccountDto { Id = accountId, Name = "Test Account", Balance = 100 };
+
             _mockAccountService.Setup(s => s.GetAccountByIdAsync(accountId, _testUserId))
                 .ReturnsAsync(account);
+            _mockMapper.Setup(m => m.Map<AccountDto>(account))
+                .Returns(accountDto);
 
             // Act
             var result = await _controller.GetAccount(accountId);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var returnValue = Assert.IsType<Account>(okResult.Value);
+            var returnValue = Assert.IsType<AccountDto>(okResult.Value);
             Assert.Equal(accountId, returnValue.Id);
         }
 
@@ -194,17 +190,5 @@ namespace FinTechAPI.Tests
             var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
             Assert.NotNull(notFoundResult.Value);
         }
-        
-        // TODO: Добавьте тесты для случаев, когда User ID не найден в токене (Unauthorized)
-        // Для этого нужно будет настроить ControllerTestHelpers.CreateHttpContext так, чтобы он не возвращал NameIdentifier
-        // или передать пустой userId.
-        // Например:
-        // _controller.ControllerContext = new ControllerContext
-        // {
-        //     HttpContext = ControllerTestHelpers.CreateHttpContext(null, "test@example.com") // или string.Empty
-        // };
-        // var result = await _controller.GetAccounts();
-        // Assert.IsType<UnauthorizedObjectResult>(result.Result);
-
     }
 }

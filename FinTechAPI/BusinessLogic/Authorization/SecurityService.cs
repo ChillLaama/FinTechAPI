@@ -1,10 +1,8 @@
-using FinTechAPI.Models;
-using System.Collections.Generic;
-using System.Linq;
 using FinTechAPI.Data;
+using FinTechAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace FinTechAPI.Services
+namespace FinTechAPI.BusinessLogic.Authorization
 {
     public class SecurityService : ISecurityService
     {

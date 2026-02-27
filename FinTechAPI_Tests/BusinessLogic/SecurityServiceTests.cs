@@ -1,3 +1,4 @@
+using FinTechAPI.BusinessLogic.Authorization;
 using FinTechAPI.Services;
 using FinTechAPI.Data;
 using FinTechAPI.Models;
