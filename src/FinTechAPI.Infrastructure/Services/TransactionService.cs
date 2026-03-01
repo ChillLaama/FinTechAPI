@@ -1,148 +1,186 @@
 using FinTechAPI.Application.Interfaces;
-using FinTechAPI.Domain.Models;
-using FinTechAPI.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
+using FinTechAPI.Infrastructure.Firebase;
+using FinTechAPI.Infrastructure.Firebase.Documents;
+using Google.Cloud.Firestore;
+using Transaction = FinTechAPI.Domain.Models.Transaction;
+using Currency = FinTechAPI.Domain.Models.Currency;
+using TransactionType = FinTechAPI.Domain.Models.TransactionType;
 
 namespace FinTechAPI.Infrastructure.Services
 {
     public class TransactionService : ITransactionService
     {
-        private readonly FinTechDbContext _context;
+        private readonly FirestoreProvider _firestore;
 
-        public TransactionService(FinTechDbContext context)
+        public TransactionService(FirestoreProvider firestore)
         {
-            _context = context;
+            _firestore = firestore;
         }
 
         public async Task<IEnumerable<Transaction>> GetTransactionsAsync(string userId)
         {
-            return await _context.Transactions
-                .Where(t => t.UserId == userId)
-                .OrderByDescending(t => t.TransactionDate)
-                .ToListAsync();
+            var snapshot = await _firestore.Transactions
+                .WhereEqualTo("userId", userId)
+                .OrderByDescending("transactionDate")
+                .GetSnapshotAsync();
+            return snapshot.Documents.Select(doc => ToTransaction(doc.ConvertTo<TransactionDocument>()));
         }
 
-        public async Task<Transaction?> GetTransactionByIdAsync(int transactionId, string userId)
+        public async Task<Transaction?> GetTransactionByIdAsync(string transactionId, string userId)
         {
-            return await _context.Transactions
-                .FirstOrDefaultAsync(t => t.Id == transactionId && t.UserId == userId);
+            var snapshot = await _firestore.Transactions.Document(transactionId).GetSnapshotAsync();
+            if (!snapshot.Exists) return null;
+            var doc = snapshot.ConvertTo<TransactionDocument>();
+            return doc.UserId != userId ? null : ToTransaction(doc);
         }
 
-        public async Task<IEnumerable<Transaction>> GetTransactionsByAccountIdAsync(int accountId, string userId)
+        public async Task<IEnumerable<Transaction>> GetTransactionsByAccountIdAsync(string accountId, string userId)
         {
-            var accountExists = await _context.Accounts.AnyAsync(a => a.Id == accountId && a.UserId == userId);
-            if (!accountExists)
+            var accountSnap = await _firestore.Accounts.Document(accountId).GetSnapshotAsync();
+            if (!accountSnap.Exists) return Enumerable.Empty<Transaction>();
+            if (accountSnap.ConvertTo<AccountDocument>().UserId != userId)
                 return Enumerable.Empty<Transaction>();
 
-            return await _context.Transactions
-                .Where(t => t.AccountId == accountId && t.UserId == userId)
-                .OrderByDescending(t => t.TransactionDate)
-                .ToListAsync();
+            var snapshot = await _firestore.Transactions
+                .WhereEqualTo("accountId", accountId)
+                .WhereEqualTo("userId", userId)
+                .OrderByDescending("transactionDate")
+                .GetSnapshotAsync();
+            return snapshot.Documents.Select(doc => ToTransaction(doc.ConvertTo<TransactionDocument>()));
         }
 
         public async Task<Transaction?> CreateTransactionAsync(Transaction transaction, string userId)
         {
-            var account = await _context.Accounts
-                .FirstOrDefaultAsync(a => a.Id == transaction.AccountId && a.UserId == userId);
+            var accountSnap = await _firestore.Accounts.Document(transaction.AccountId).GetSnapshotAsync();
+            if (!accountSnap.Exists) return null;
+            var accountDoc = accountSnap.ConvertTo<AccountDocument>();
+            if (accountDoc.UserId != userId) return null;
 
-            if (account == null)
-                return null;
-
-            transaction.UserId = userId;
+            transaction.UserId    = userId;
             transaction.CreatedAt = DateTime.UtcNow;
             transaction.UpdatedAt = DateTime.UtcNow;
-            transaction.Id = 0;
 
-            _context.Transactions.Add(transaction);
+            var docRef = _firestore.Transactions.Document();
+            transaction.Id = docRef.Id;
+            await docRef.SetAsync(ToDocument(transaction));
 
-            if (transaction.Type == TransactionType.Income)
-                account.Balance += transaction.Amount;
-            else if (transaction.Type == TransactionType.Expense)
-                account.Balance -= transaction.Amount;
+            double delta = transaction.Type == TransactionType.Income
+                ? (double)transaction.Amount
+                : transaction.Type == TransactionType.Expense ? -(double)transaction.Amount : 0;
 
-            account.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            if (delta != 0)
+            {
+                await _firestore.Accounts.Document(transaction.AccountId).UpdateAsync(new Dictionary<string, object>
+                {
+                    ["balance"]   = accountDoc.Balance + delta,
+                    ["updatedAt"] = Timestamp.GetCurrentTimestamp()
+                });
+            }
 
             return transaction;
         }
 
-        public async Task<Transaction?> UpdateTransactionAsync(int transactionId, Transaction transactionDetails, string userId)
+        public async Task<Transaction?> UpdateTransactionAsync(string transactionId, Transaction transactionDetails, string userId)
         {
-            var existingTransaction = await _context.Transactions
-                .Include(t => t.Account)
-                .FirstOrDefaultAsync(t => t.Id == transactionId && t.UserId == userId);
+            var txnSnap = await _firestore.Transactions.Document(transactionId).GetSnapshotAsync();
+            if (!txnSnap.Exists) return null;
+            var existing = txnSnap.ConvertTo<TransactionDocument>();
+            if (existing.UserId != userId) return null;
+            if (existing.AccountId != transactionDetails.AccountId) return null;
 
-            if (existingTransaction == null)
-                return null;
+            var accountSnap = await _firestore.Accounts.Document(existing.AccountId).GetSnapshotAsync();
+            if (!accountSnap.Exists) return null;
+            var accountDoc = accountSnap.ConvertTo<AccountDocument>();
 
-            var account = existingTransaction.Account;
-            if (account == null)
-                return null;
+            double revert = existing.Type == (int)TransactionType.Income
+                ? -(double)existing.Amount
+                : existing.Type == (int)TransactionType.Expense ? existing.Amount : 0;
 
-            if (existingTransaction.AccountId != transactionDetails.AccountId)
-                return null;
+            double apply = transactionDetails.Type == TransactionType.Income
+                ? (double)transactionDetails.Amount
+                : transactionDetails.Type == TransactionType.Expense ? -(double)transactionDetails.Amount : 0;
 
-            // Revert previous effect
-            if (existingTransaction.Type == TransactionType.Income)
-                account.Balance -= existingTransaction.Amount;
-            else if (existingTransaction.Type == TransactionType.Expense)
-                account.Balance += existingTransaction.Amount;
-
-            // Apply new effect
-            if (transactionDetails.Type == TransactionType.Income)
-                account.Balance += transactionDetails.Amount;
-            else if (transactionDetails.Type == TransactionType.Expense)
-                account.Balance -= transactionDetails.Amount;
-
-            account.UpdatedAt = DateTime.UtcNow;
-
-            existingTransaction.Amount = transactionDetails.Amount;
-            existingTransaction.Type = transactionDetails.Type;
-            existingTransaction.Description = transactionDetails.Description;
-            existingTransaction.TransactionDate = transactionDetails.TransactionDate;
-            existingTransaction.UpdatedAt = DateTime.UtcNow;
-
-            try
+            await _firestore.Transactions.Document(transactionId).UpdateAsync(new Dictionary<string, object>
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await TransactionExistsAsync(transactionId, userId))
-                    return null;
-                throw;
-            }
+                ["amount"]          = (double)transactionDetails.Amount,
+                ["type"]            = (int)transactionDetails.Type,
+                ["description"]     = transactionDetails.Description ?? (object)FieldValue.Delete,
+                ["transactionDate"] = Timestamp.FromDateTime(transactionDetails.TransactionDate.ToUniversalTime()),
+                ["updatedAt"]       = Timestamp.GetCurrentTimestamp()
+            });
 
-            return existingTransaction;
+            await _firestore.Accounts.Document(existing.AccountId).UpdateAsync(new Dictionary<string, object>
+            {
+                ["balance"]   = accountDoc.Balance + revert + apply,
+                ["updatedAt"] = Timestamp.GetCurrentTimestamp()
+            });
+
+            existing.Amount = (double)transactionDetails.Amount;
+            existing.Type   = (int)transactionDetails.Type;
+            existing.Description = transactionDetails.Description;
+            return ToTransaction(existing);
         }
 
-        public async Task<bool> DeleteTransactionAsync(int transactionId, string userId)
+        public async Task<bool> DeleteTransactionAsync(string transactionId, string userId)
         {
-            var transaction = await _context.Transactions
-                .Include(t => t.Account)
-                .FirstOrDefaultAsync(t => t.Id == transactionId && t.UserId == userId);
+            var snapshot = await _firestore.Transactions.Document(transactionId).GetSnapshotAsync();
+            if (!snapshot.Exists) return false;
+            var doc = snapshot.ConvertTo<TransactionDocument>();
+            if (doc.UserId != userId) return false;
 
-            if (transaction == null)
-                return false;
+            var accountSnap = await _firestore.Accounts.Document(doc.AccountId).GetSnapshotAsync();
+            if (accountSnap.Exists)
+            {
+                var accountDoc = accountSnap.ConvertTo<AccountDocument>();
+                double revert = doc.Type == (int)TransactionType.Income
+                    ? -(double)doc.Amount
+                    : doc.Type == (int)TransactionType.Expense ? doc.Amount : 0;
 
-            var account = transaction.Account;
-            if (account == null)
-                return false;
+                await _firestore.Accounts.Document(doc.AccountId).UpdateAsync(new Dictionary<string, object>
+                {
+                    ["balance"]   = accountDoc.Balance + revert,
+                    ["updatedAt"] = Timestamp.GetCurrentTimestamp()
+                });
+            }
 
-            if (transaction.Type == TransactionType.Income)
-                account.Balance -= transaction.Amount;
-            else if (transaction.Type == TransactionType.Expense)
-                account.Balance += transaction.Amount;
-
-            account.UpdatedAt = DateTime.UtcNow;
-            _context.Transactions.Remove(transaction);
-            await _context.SaveChangesAsync();
+            await _firestore.Transactions.Document(transactionId).DeleteAsync();
             return true;
         }
 
-        public async Task<bool> TransactionExistsAsync(int transactionId, string userId)
+        public async Task<bool> TransactionExistsAsync(string transactionId, string userId)
         {
-            return await _context.Transactions.AnyAsync(e => e.Id == transactionId && e.UserId == userId);
+            var snapshot = await _firestore.Transactions.Document(transactionId).GetSnapshotAsync();
+            if (!snapshot.Exists) return false;
+            var doc = snapshot.ConvertTo<TransactionDocument>();
+            return doc.UserId == userId;
         }
+
+        private static Transaction ToTransaction(TransactionDocument d) => new()
+        {
+            Id              = d.Id,
+            Amount          = (decimal)d.Amount,
+            Currency        = (Currency)d.Currency,
+            Type            = (TransactionType)d.Type,
+            Description     = d.Description,
+            TransactionDate = d.TransactionDate.ToDateTime(),
+            AccountId       = d.AccountId,
+            UserId          = d.UserId,
+            CreatedAt       = d.CreatedAt.ToDateTime(),
+            UpdatedAt       = d.UpdatedAt.ToDateTime()
+        };
+
+        private static TransactionDocument ToDocument(Transaction t) => new()
+        {
+            Id              = t.Id,
+            Amount          = (double)t.Amount,
+            Currency        = (int)t.Currency,
+            Type            = (int)t.Type,
+            Description     = t.Description,
+            TransactionDate = Timestamp.FromDateTime(t.TransactionDate.ToUniversalTime()),
+            AccountId       = t.AccountId,
+            UserId          = t.UserId,
+            CreatedAt       = Timestamp.FromDateTime(t.CreatedAt.ToUniversalTime()),
+            UpdatedAt       = Timestamp.FromDateTime(t.UpdatedAt.ToUniversalTime())
+        };
     }
 }

@@ -1,131 +1,150 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Text;
-using FinTechAPI.Application.Configuration;
+using System.Text.Json;
+using FirebaseAdmin.Auth;
 using FinTechAPI.Application.DTOs;
 using FinTechAPI.Application.Interfaces;
 using FinTechAPI.Domain.Models;
-using FinTechAPI.Infrastructure.Data;
-using Microsoft.AspNetCore.Identity;
+using FinTechAPI.Infrastructure.Firebase;
+using FinTechAPI.Infrastructure.Firebase.Documents;
+using Google.Cloud.Firestore;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 
 namespace FinTechAPI.Infrastructure.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly UserManager<User> _userManager;
-        private readonly SignInManager<User> _signInManager;
-        private readonly AuthSettings _authSettings;
-        private readonly FinTechDbContext _context;
+        private readonly FirestoreProvider   _firestore;
+        private readonly FirebaseSettings    _settings;
+        private readonly IHttpClientFactory  _httpClientFactory;
 
         public AuthService(
-            UserManager<User> userManager,
-            SignInManager<User> signInManager,
-            IOptions<AuthSettings> authSettings,
-            FinTechDbContext context)
+            FirestoreProvider firestore,
+            IOptions<FirebaseSettings> settings,
+            IHttpClientFactory httpClientFactory)
         {
-            _userManager = userManager;
-            _signInManager = signInManager;
-            _authSettings = authSettings.Value;
-            _context = context;
+            _firestore         = firestore;
+            _settings          = settings.Value;
+            _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<(IdentityResult, UserDto)> RegisterAsync(RegisterUserDto registerDto)
+        public async Task<(bool Success, string? Error, UserDto? User)> RegisterAsync(RegisterUserDto registerDto)
         {
-            var user = new User
+            try
             {
-                UserName = registerDto.Email,
-                Email = registerDto.Email,
-                FirstName = registerDto.FirstName,
-                LastName = registerDto.LastName
-            };
-
-            var result = await _userManager.CreateAsync(user, registerDto.Password);
-
-            if (!result.Succeeded)
-                return (result, null);
-
-            await _userManager.AddToRoleAsync(user, "User");
-
-            var account = new Account
-            {
-                Name = "Main",
-                AccountType = AccountType.Checking,
-                Balance = 0,
-                Currency = Currency.USD,
-                UserId = user.Id,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-            _context.Accounts.Add(account);
-            await _context.SaveChangesAsync();
-
-            var userDto = new UserDto
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName
-            };
-
-            return (result, userDto);
-        }
-
-        public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto, string ipAddress)
-        {
-            var user = await _userManager.FindByEmailAsync(loginDto.Email);
-            if (user == null)
-                return new AuthResponseDto { Success = false, ErrorMessage = "Invalid credentials" };
-
-            var result = await _signInManager.CheckPasswordSignInAsync(user, loginDto.Password, false);
-            if (!result.Succeeded)
-                return new AuthResponseDto { Success = false, ErrorMessage = "Invalid credentials" };
-
-            var token = await GenerateJwtToken(user);
-
-            return new AuthResponseDto
-            {
-                Success = true,
-                Token = token,
-                Expiration = DateTime.UtcNow.AddMinutes(_authSettings.ExpirationInMinutes),
-                User = new UserDto
+                // 1. Create user in Firebase Auth
+                var userRecord = await FirebaseAuth.DefaultInstance.CreateUserAsync(new UserRecordArgs
                 {
-                    Id = user.Id,
-                    Email = user.Email,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName
-                }
-            };
+                    Email       = registerDto.Email,
+                    Password    = registerDto.Password,
+                    DisplayName = $"{registerDto.FirstName} {registerDto.LastName}"
+                });
+
+                // 2. Store profile in Firestore
+                var userDoc = new UserDocument
+                {
+                    Id        = userRecord.Uid,
+                    Email     = registerDto.Email,
+                    FirstName = registerDto.FirstName,
+                    LastName  = registerDto.LastName,
+                    CreatedAt = Timestamp.GetCurrentTimestamp(),
+                    IsActive  = true
+                };
+                await _firestore.Users.Document(userRecord.Uid).SetAsync(userDoc);
+
+                // 3. Create default account
+                var accountRef = _firestore.Accounts.Document();
+                var accountDoc = new AccountDocument
+                {
+                    Id          = accountRef.Id,
+                    Name        = "Main",
+                    AccountType = (int)AccountType.Checking,
+                    Balance     = 0,
+                    Currency    = (int)Currency.USD,
+                    UserId      = userRecord.Uid,
+                    CreatedAt   = Timestamp.GetCurrentTimestamp(),
+                    UpdatedAt   = Timestamp.GetCurrentTimestamp()
+                };
+                await accountRef.SetAsync(accountDoc);
+
+                var dto = new UserDto
+                {
+                    Id        = userRecord.Uid,
+                    Email     = registerDto.Email,
+                    FirstName = registerDto.FirstName,
+                    LastName  = registerDto.LastName
+                };
+
+                return (true, null, dto);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message, null);
+            }
         }
 
-        public async Task<string> GenerateJwtToken(User user)
+        public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto)
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_authSettings.SecretKey);
-
-            var claims = new List<Claim>
+            try
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email!)
-            };
+                // Call Firebase Auth REST API to sign in with email/password
+                var client = _httpClientFactory.CreateClient();
+                var url    = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={_settings.WebApiKey}";
 
-            var roles = await _userManager.GetRolesAsync(user);
-            foreach (var role in roles)
-                claims.Add(new Claim(ClaimTypes.Role, role));
+                var payload = JsonSerializer.Serialize(new
+                {
+                    email             = loginDto.Email,
+                    password          = loginDto.Password,
+                    returnSecureToken = true
+                });
 
-            var tokenDescriptor = new SecurityTokenDescriptor
+                var response = await client.PostAsync(url,
+                    new StringContent(payload, Encoding.UTF8, "application/json"));
+
+                if (!response.IsSuccessStatusCode)
+                    return new AuthResponseDto { Success = false, ErrorMessage = "Invalid credentials." };
+
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                var idToken     = root.GetProperty("idToken").GetString()!;
+                var refreshToken = root.GetProperty("refreshToken").GetString()!;
+                var expiresIn   = int.Parse(root.GetProperty("expiresIn").GetString()!);
+                var uid         = root.GetProperty("localId").GetString()!;
+
+                // Fetch profile from Firestore
+                var userSnap = await _firestore.Users.Document(uid).GetSnapshotAsync();
+                UserDto userDto;
+
+                if (userSnap.Exists)
+                {
+                    var userDoc   = userSnap.ConvertTo<UserDocument>();
+                    userDto = new UserDto
+                    {
+                        Id        = uid,
+                        Email     = userDoc.Email,
+                        FirstName = userDoc.FirstName,
+                        LastName  = userDoc.LastName
+                    };
+                }
+                else
+                {
+                    userDto = new UserDto { Id = uid, Email = loginDto.Email };
+                }
+
+                return new AuthResponseDto
+                {
+                    Success      = true,
+                    Token        = idToken,
+                    RefreshToken = refreshToken,
+                    Expiration   = DateTime.UtcNow.AddSeconds(expiresIn),
+                    User         = userDto
+                };
+            }
+            catch (Exception ex)
             {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddMinutes(_authSettings.ExpirationInMinutes),
-                SigningCredentials = new SigningCredentials(
-                    new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-                Issuer = _authSettings.Issuer,
-                Audience = _authSettings.Audience
-            };
-
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
+                return new AuthResponseDto { Success = false, ErrorMessage = ex.Message };
+            }
         }
     }
 }

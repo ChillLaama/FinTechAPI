@@ -17,9 +17,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("MauiPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.UseCors("MauiPolicy");
 
 app.Run();

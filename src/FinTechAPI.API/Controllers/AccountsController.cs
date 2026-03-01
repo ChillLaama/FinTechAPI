@@ -39,7 +39,7 @@ namespace FinTechAPI.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<AccountDto>> GetAccount(int id)
+        public async Task<ActionResult<AccountDto>> GetAccount(string id)
         {
             var userId = GetCurrentUserId();
             if (string.IsNullOrEmpty(userId))
@@ -65,28 +65,21 @@ namespace FinTechAPI.API.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAccount(int id, [FromBody] Account accountUpdateDetails)
+        public async Task<IActionResult> UpdateAccount(string id, [FromBody] Account accountUpdateDetails)
         {
             var userId = GetCurrentUserId();
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized(new { message = "User ID not found in token." });
 
-            if (id != accountUpdateDetails.Id)
-                return BadRequest(new { message = "Account ID in URL and body do not match." });
-
             var updatedAccount = await _accountService.UpdateAccountAsync(id, accountUpdateDetails, userId);
             if (updatedAccount == null)
-            {
-                if (!await _accountService.AccountExistsAsync(id, userId))
-                    return NotFound(new { message = $"Account with ID {id} not found for the current user." });
                 return NotFound(new { message = $"Account with ID {id} not found or update failed." });
-            }
 
             return NoContent();
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAccount(int id)
+        public async Task<IActionResult> DeleteAccount(string id)
         {
             var userId = GetCurrentUserId();
             if (string.IsNullOrEmpty(userId))

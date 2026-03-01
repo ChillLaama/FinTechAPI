@@ -1,14 +1,12 @@
-using System.Text;
-using FinTechAPI.Application.Configuration;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+using Google.Cloud.Firestore;
+using FinTechAPI.API.Auth;
 using FinTechAPI.Application.Interfaces;
 using FinTechAPI.Application.Mappings;
-using FinTechAPI.Domain.Models;
-using FinTechAPI.Infrastructure.Data;
+using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.OpenApi.Models;
 
 namespace FinTechAPI.API.Configuration;
@@ -20,71 +18,60 @@ public static class DependencyInjectionConfig
         services.AddControllers();
         services.AddAutoMapper(typeof(AutoMapperProfile));
         services.AddEndpointsApiExplorer();
+        services.AddHttpClient();
 
-        services.AddDbContext<FinTechDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+        // ── Firebase initialisation ──────────────────────────────────────
+        var firebaseSection = configuration.GetSection("Firebase");
 
-        services.AddIdentity<User, IdentityRole>()
-            .AddEntityFrameworkStores<FinTechDbContext>()
-            .AddDefaultTokenProviders();
+        if (FirebaseApp.DefaultInstance == null)
+        {
+            var serviceAccountPath = firebaseSection["ServiceAccountPath"];
+            GoogleCredential credential;
 
-        services.AddScoped<IAccountService, AccountService>();
-        services.AddScoped<IReportingService, ReportingService>();
-        services.AddScoped<ISecurityService, SecurityService>();
+            if (!string.IsNullOrEmpty(serviceAccountPath) && File.Exists(serviceAccountPath))
+                credential = GoogleCredential.FromFile(serviceAccountPath);
+            else
+                credential = GoogleCredential.GetApplicationDefault();
+
+            FirebaseApp.Create(new AppOptions { Credential = credential });
+        }
+
+        var projectId = firebaseSection["ProjectId"]
+            ?? throw new InvalidOperationException("Firebase:ProjectId is not configured.");
+
+        services.AddSingleton(_ => FirestoreDb.Create(projectId));
+        services.AddSingleton<FirestoreProvider>();
+        services.Configure<FirebaseSettings>(firebaseSection);
+
+        // ── Application services ─────────────────────────────────────────
+        services.AddScoped<IAuthService,        AuthService>();
+        services.AddScoped<IAccountService,     AccountService>();
+        services.AddScoped<IReportingService,   ReportingService>();
+        services.AddScoped<ISecurityService,    SecurityService>();
         services.AddScoped<ITransactionService, TransactionService>();
-        services.AddScoped<IAuthService, AuthService>();
 
-        var authSettingsSection = configuration.GetSection("AuthSettings");
-        services.Configure<AuthSettings>(authSettingsSection);
+        // ── Authentication / Authorisation ───────────────────────────────
+        services.AddAuthentication("Firebase")
+            .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>("Firebase", null);
+        services.AddAuthorization();
 
-        var authSettings = authSettingsSection.Get<AuthSettings>();
-        if (authSettings == null || string.IsNullOrEmpty(authSettings.SecretKey))
-            throw new InvalidOperationException("Authentication settings are not configured properly.");
+        // ── CORS ─────────────────────────────────────────────────────────
+        services.AddCors(options =>
+            options.AddPolicy("MauiPolicy", p =>
+                p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
-        var key = Encoding.ASCII.GetBytes(authSettings.SecretKey);
-
-        services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(options =>
-            {
-                options.RequireHttpsMetadata = false;
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = authSettings.Issuer,
-                    ValidAudience = authSettings.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                };
-                options.SaveToken = true;
-                options.Events = new JwtBearerEvents
-                {
-                    OnMessageReceived = context =>
-                    {
-                        var token = context.Request.Cookies["Authorization"];
-                        if (!string.IsNullOrEmpty(token))
-                            context.Token = token;
-                        return Task.CompletedTask;
-                    }
-                };
-            });
-
+        // ── Swagger ──────────────────────────────────────────────────────
         services.AddSwaggerGen(c =>
         {
-            c.SwaggerDoc("v1", new OpenApiInfo { Title = "FinTechAPI", Version = "v1" });
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "FinTechAPI (Firebase)", Version = "v1" });
             c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
-                Name = "Authorization",
-                Type = SecuritySchemeType.ApiKey,
-                Scheme = "Bearer",
+                Name        = "Authorization",
+                Type        = SecuritySchemeType.ApiKey,
+                Scheme      = "Bearer",
                 BearerFormat = "JWT",
-                In = ParameterLocation.Header,
-                Description = "Enter 'Bearer' [space] and then your token.\r\n\r\nExample: \"Bearer 12345abcdef\"",
+                In          = ParameterLocation.Header,
+                Description = "Enter 'Bearer {Firebase ID token}'"
             });
             c.AddSecurityRequirement(new OpenApiSecurityRequirement
             {
@@ -95,14 +82,6 @@ public static class DependencyInjectionConfig
                     },
                     Array.Empty<string>()
                 }
-            });
-        });
-
-        services.AddCors(options =>
-        {
-            options.AddPolicy("MauiPolicy", policy =>
-            {
-                policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
             });
         });
     }

@@ -3,11 +3,15 @@
 /.vs
 .DS_Store
 **/.DS_Store
-/src/PhilanthroPrint.Api.Service/.vs/print-api-svc
-/src/PhilanthroPrint.Api.Service/print-api-svc.csproj.user
-/src/PhilanthroPrint.Api.Service/*appsettings.Secrets.json
-/src/PhilanthroPrint.Api.Service/*appsettings.StagingSecrets.json
-/src/PhilanthroPrint.Api.Service/wwwroot/openapi/print-swag-internal/swagger.json
-/src/PhilanthroPrint.Api.Service/wwwroot/openapi/public/swagger.json
-/src/PhilanthroPrint.Api.Service/wwwroot/openapi/partner/swagger.json
+
+# Rider / IntelliJ IDE
+.idea/
+*.sln.DotSettings.user
+
+# Firebase service account (secrets)
+firebase-service-account.json
+
+# Old monolith project (deprecated)
+/FinTechAPI/
+/FinTechAPI_Tests/
 

@@ -1,72 +1,66 @@
-using FinTechAPI.Domain.Models;
-using Microsoft.AspNetCore.Identity;
+using FirebaseAdmin.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FinTechAPI.API.Controllers
 {
+    /// <summary>
+    /// Manages user roles via Firebase custom claims.
+    /// Roles are stored as the "role" custom claim on each Firebase user.
+    /// </summary>
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class RolesController : ControllerBase
     {
-        private readonly RoleManager<IdentityRole> _roleManager;
-
-        public RolesController(RoleManager<IdentityRole> roleManager)
+        [HttpGet("{uid}")]
+        public async Task<IActionResult> GetUserRole(string uid)
         {
-            _roleManager = roleManager;
+            try
+            {
+                var user  = await FirebaseAuth.DefaultInstance.GetUserAsync(uid);
+                var claims = user.CustomClaims;
+                var role  = claims != null && claims.TryGetValue("role", out var r) ? r?.ToString() : null;
+                return Ok(new { uid, role });
+            }
+            catch (FirebaseAuthException)
+            {
+                return NotFound(new { message = $"User {uid} not found." });
+            }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetRoles()
+        [HttpPost("{uid}")]
+        public async Task<IActionResult> SetUserRole(string uid, [FromBody] SetRoleRequest request)
         {
-            var roles = await _roleManager.Roles.ToListAsync();
-            return Ok(roles);
+            if (string.IsNullOrWhiteSpace(request.Role))
+                return BadRequest(new { message = "Role is required." });
+
+            try
+            {
+                var claims = new Dictionary<string, object> { ["role"] = request.Role };
+                await FirebaseAuth.DefaultInstance.SetCustomUserClaimsAsync(uid, claims);
+                return Ok(new { uid, role = request.Role });
+            }
+            catch (FirebaseAuthException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
-        [HttpPost]
-        public async Task<IActionResult> CreateRole(string roleName)
+        [HttpDelete("{uid}")]
+        public async Task<IActionResult> RemoveUserRole(string uid)
         {
-            if (string.IsNullOrEmpty(roleName))
-                return BadRequest("Role name is required.");
-
-            var result = await _roleManager.CreateAsync(new IdentityRole(roleName));
-            if (result.Succeeded)
-                return Ok();
-            return BadRequest(result.Errors);
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteRole(string id)
-        {
-            var role = await _roleManager.FindByIdAsync(id);
-            if (role == null)
-                return NotFound();
-
-            var result = await _roleManager.DeleteAsync(role);
-            if (result.Succeeded)
+            try
+            {
+                await FirebaseAuth.DefaultInstance.SetCustomUserClaimsAsync(uid, null);
                 return NoContent();
-            return BadRequest(result.Errors);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateRole(string id, string newName)
-        {
-            var role = await _roleManager.FindByIdAsync(id);
-            if (role == null)
-                return NotFound();
-
-            if (string.IsNullOrEmpty(newName))
-                return BadRequest("New role name is required.");
-
-            var existingRole = await _roleManager.FindByNameAsync(newName);
-            if (existingRole != null)
-                return BadRequest($"A role with the name '{newName}' already exists.");
-
-            role.Name = newName;
-            var result = await _roleManager.UpdateAsync(role);
-            if (result.Succeeded)
-                return NoContent();
-            return BadRequest(result.Errors);
+            }
+            catch (FirebaseAuthException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
+
+    public record SetRoleRequest(string Role);
 }

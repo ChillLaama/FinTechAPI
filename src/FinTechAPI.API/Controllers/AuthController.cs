@@ -18,25 +18,26 @@ namespace FinTechAPI.API.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterUserDto registerDto)
         {
-            var (result, userDto) = await _authService.RegisterAsync(registerDto);
-            if (!result.Succeeded)
-                return BadRequest(result.Errors);
+            var (success, error, userDto) = await _authService.RegisterAsync(registerDto);
+            if (!success)
+                return BadRequest(new { message = error });
             return Ok(userDto);
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto loginDto)
         {
-            var authResponse = await _authService.LoginAsync(loginDto, HttpContext.Connection.RemoteIpAddress?.ToString());
-            if (authResponse == null)
-                return Unauthorized(new { message = "Invalid email or password" });
+            var authResponse = await _authService.LoginAsync(loginDto);
+            if (!authResponse.Success)
+                return Unauthorized(new { message = authResponse.ErrorMessage ?? "Invalid credentials." });
 
+            // Store token in HttpOnly cookie for browser/MAUI clients
             Response.Cookies.Append("Authorization", authResponse.Token, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure   = true,
                 SameSite = SameSiteMode.None,
-                Expires = authResponse.Expiration
+                Expires  = authResponse.Expiration
             });
 
             return Ok(authResponse);

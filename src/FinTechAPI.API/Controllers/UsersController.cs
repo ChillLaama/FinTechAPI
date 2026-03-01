@@ -1,88 +1,84 @@
-using FinTechAPI.Domain.Models;
-using Microsoft.AspNetCore.Identity;
+using FirebaseAdmin.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinTechAPI.API.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly UserManager<User> _userManager;
-
-        public UsersController(UserManager<User> userManager)
-        {
-            _userManager = userManager;
-        }
-
         [HttpGet]
         public async Task<IActionResult> GetUsers()
         {
-            var users = await _userManager.GetUserAsync(User);
+            var pagedEnumerable = FirebaseAuth.DefaultInstance.ListUsersAsync(null);
+            var users = new List<object>();
+
+            await foreach (var user in pagedEnumerable)
+            {
+                users.Add(new
+                {
+                    user.Uid,
+                    user.Email,
+                    user.DisplayName,
+                    user.Disabled
+                });
+            }
+
             return Ok(users);
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetUser(string id)
+        [HttpGet("{uid}")]
+        public async Task<IActionResult> GetUser(string uid)
         {
-            var user = await _userManager.FindByIdAsync(id);
-            if (user == null)
-                return NotFound();
-            return Ok(user);
+            try
+            {
+                var user = await FirebaseAuth.DefaultInstance.GetUserAsync(uid);
+                return Ok(new
+                {
+                    user.Uid,
+                    user.Email,
+                    user.DisplayName,
+                    user.Disabled
+                });
+            }
+            catch (FirebaseAuthException)
+            {
+                return NotFound(new { message = $"User {uid} not found." });
+            }
         }
 
-        [HttpPost]
-        public async Task<IActionResult> CreateUser(User user, string password)
+        [HttpDelete("{uid}")]
+        public async Task<IActionResult> DeleteUser(string uid)
         {
-            var result = await _userManager.CreateAsync(user, password);
-            if (result.Succeeded)
-                return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
-            return BadRequest(result.Errors);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUser(string id, User user)
-        {
-            if (id != user.Id)
-                return BadRequest();
-
-            var existingUser = await _userManager.FindByIdAsync(id);
-            if (existingUser == null)
-                return NotFound();
-
-            var result = await _userManager.UpdateAsync(existingUser);
-            if (result.Succeeded)
+            try
+            {
+                await FirebaseAuth.DefaultInstance.DeleteUserAsync(uid);
                 return NoContent();
-            return BadRequest(result.Errors);
+            }
+            catch (FirebaseAuthException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(string id)
+        [HttpPatch("{uid}/disable")]
+        public async Task<IActionResult> DisableUser(string uid)
         {
-            var user = await _userManager.FindByIdAsync(id);
-            if (user == null)
-                return NotFound();
-
-            var result = await _userManager.DeleteAsync(user);
-            if (result.Succeeded)
+            try
+            {
+                await FirebaseAuth.DefaultInstance.UpdateUserAsync(new UserRecordArgs
+                {
+                    Uid      = uid,
+                    Disabled = true
+                });
                 return NoContent();
-            return BadRequest(result.Errors);
-        }
-
-        [HttpDelete("delete")]
-        public async Task<IActionResult> DeleteUserByEmail([FromQuery] string email)
-        {
-            if (string.IsNullOrEmpty(email))
-                return BadRequest("Email is required.");
-
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null)
-                return NotFound();
-
-            var result = await _userManager.DeleteAsync(user);
-            if (result.Succeeded)
-                return NoContent();
-            return BadRequest(result.Errors);
+            }
+            catch (FirebaseAuthException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

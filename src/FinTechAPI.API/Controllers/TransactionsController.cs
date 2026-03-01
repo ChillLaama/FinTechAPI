@@ -1,10 +1,10 @@
 using System.Security.Claims;
+using AutoMapper;
+using FinTechAPI.Application.DTOs;
 using FinTechAPI.Application.Interfaces;
 using FinTechAPI.Domain.Models;
-using FinTechAPI.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FinTechAPI.API.Controllers
 {
@@ -13,168 +13,106 @@ namespace FinTechAPI.API.Controllers
     [Route("api/[controller]")]
     public class TransactionsController : ControllerBase
     {
-        private readonly FinTechDbContext _context;
+        private readonly ITransactionService _transactionService;
+        private readonly IMapper             _mapper;
 
-        public TransactionsController(FinTechDbContext context)
+        public TransactionsController(ITransactionService transactionService, IMapper mapper)
         {
-            _context = context;
+            _transactionService = transactionService;
+            _mapper             = mapper;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Transaction>>> GetTransactions()
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized();
+        private string GetCurrentUserId() =>
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 
-            var transactions = await _context.Transactions
-                .Where(t => t.UserId == userId)
-                .OrderByDescending(t => t.TransactionDate)
-                .ToListAsync();
-            return Ok(transactions);
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions()
+        {
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var transactions = await _transactionService.GetTransactionsAsync(userId);
+            return Ok(_mapper.Map<IEnumerable<TransactionDto>>(transactions));
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Transaction>> GetTransaction(int id)
+        public async Task<ActionResult<TransactionDto>> GetTransaction(string id)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized();
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var transaction = await _context.Transactions
-                .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
-            if (transaction == null)
-                return NotFound();
+            var transaction = await _transactionService.GetTransactionByIdAsync(id, userId);
+            if (transaction == null) return NotFound();
 
-            return Ok(transaction);
+            return Ok(_mapper.Map<TransactionDto>(transaction));
+        }
+
+        [HttpGet("account/{accountId}")]
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetByAccount(string accountId)
+        {
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var transactions = await _transactionService.GetTransactionsByAccountIdAsync(accountId, userId);
+            return Ok(_mapper.Map<IEnumerable<TransactionDto>>(transactions));
         }
 
         [HttpPost]
-        public async Task<ActionResult<Transaction>> CreateTransaction(Transaction transaction)
+        public async Task<ActionResult<TransactionDto>> CreateTransaction([FromBody] CreateTransactionDto dto)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized();
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var account = await _context.Accounts
-                .FirstOrDefaultAsync(a => a.Id == transaction.AccountId && a.UserId == userId);
-            if (account == null)
-                return BadRequest(new { message = "Invalid account" });
+            var transaction = new Transaction
+            {
+                Amount          = dto.Amount,
+                Currency        = dto.Currency,
+                Type            = dto.Type,
+                Description     = dto.Description,
+                TransactionDate = dto.TransactionDate,
+                AccountId       = dto.AccountId
+            };
 
-            transaction.UserId = userId;
-            transaction.CreatedAt = DateTime.UtcNow;
-            transaction.UpdatedAt = DateTime.UtcNow;
-            _context.Transactions.Add(transaction);
+            var created = await _transactionService.CreateTransactionAsync(transaction, userId);
+            if (created == null)
+                return BadRequest(new { message = "Account not found or access denied." });
 
-            if (transaction.Type == TransactionType.Income)
-                account.Balance += transaction.Amount;
-            else if (transaction.Type == TransactionType.Expense)
-                account.Balance -= transaction.Amount;
-
-            account.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
+            var result = _mapper.Map<TransactionDto>(created);
+            return CreatedAtAction(nameof(GetTransaction), new { id = result.Id }, result);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTransaction(int id, Transaction transaction)
+        public async Task<IActionResult> UpdateTransaction(string id, [FromBody] CreateTransactionDto dto)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized();
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            if (id != transaction.Id)
-                return BadRequest();
-
-            var existingTransaction = await _context.Transactions
-                .Include(t => t.Account)
-                .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
-            if (existingTransaction == null)
-                return NotFound();
-
-            var account = existingTransaction.Account;
-            if (account == null)
-                return NotFound();
-
-            if (existingTransaction.Type == TransactionType.Income)
-                account.Balance -= existingTransaction.Amount;
-            else if (existingTransaction.Type == TransactionType.Expense)
-                account.Balance += existingTransaction.Amount;
-
-            if (transaction.Type == TransactionType.Income)
-                account.Balance += transaction.Amount;
-            else if (transaction.Type == TransactionType.Expense)
-                account.Balance -= transaction.Amount;
-
-            existingTransaction.Amount = transaction.Amount;
-            existingTransaction.Type = transaction.Type;
-            existingTransaction.Description = transaction.Description;
-            existingTransaction.TransactionDate = transaction.TransactionDate;
-            existingTransaction.UpdatedAt = DateTime.UtcNow;
-            account.UpdatedAt = DateTime.UtcNow;
-
-            try
+            var transactionDetails = new Transaction
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.Transactions.Any(e => e.Id == id))
-                    return NotFound();
-                throw;
-            }
+                Amount          = dto.Amount,
+                Currency        = dto.Currency,
+                Type            = dto.Type,
+                Description     = dto.Description,
+                TransactionDate = dto.TransactionDate,
+                AccountId       = dto.AccountId
+            };
+
+            var updated = await _transactionService.UpdateTransactionAsync(id, transactionDetails, userId);
+            if (updated == null) return NotFound();
 
             return NoContent();
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTransaction(int id)
+        public async Task<IActionResult> DeleteTransaction(string id)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized();
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var transaction = await _context.Transactions
-                .Include(t => t.Account)
-                .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
-            if (transaction == null)
-                return NotFound();
-
-            var account = transaction.Account;
-            if (account == null)
-                return NotFound();
-
-            if (transaction.Type == TransactionType.Income)
-                account.Balance -= transaction.Amount;
-            else if (transaction.Type == TransactionType.Expense)
-                account.Balance += transaction.Amount;
-
-            account.UpdatedAt = DateTime.UtcNow;
-            _context.Transactions.Remove(transaction);
-            await _context.SaveChangesAsync();
+            var success = await _transactionService.DeleteTransactionAsync(id, userId);
+            if (!success) return NotFound();
 
             return NoContent();
-        }
-
-        [HttpGet("account/{accountId}")]
-        public async Task<ActionResult<IEnumerable<Transaction>>> GetTransactionsByAccount(int accountId)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized();
-
-            var account = await _context.Accounts
-                .FirstOrDefaultAsync(a => a.Id == accountId && a.UserId == userId);
-            if (account == null)
-                return BadRequest(new { message = "Invalid account" });
-
-            var transactions = await _context.Transactions
-                .Where(t => t.AccountId == accountId)
-                .OrderByDescending(t => t.TransactionDate)
-                .ToListAsync();
-
-            return Ok(transactions);
         }
     }
 }

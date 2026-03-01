@@ -26,6 +26,6 @@ namespace FinTechAPI.Application.DTOs
         public DateTime TransactionDate { get; set; }
 
         [Required]
-        public int AccountId { get; set; }
+        public string AccountId { get; set; } = string.Empty;
     }
 }

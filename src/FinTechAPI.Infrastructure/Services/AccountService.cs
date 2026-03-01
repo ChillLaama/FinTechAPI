@@ -1,92 +1,120 @@
 using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using FinTechAPI.Application.DTOs;
 using FinTechAPI.Application.Interfaces;
 using FinTechAPI.Domain.Models;
-using FinTechAPI.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
+using FinTechAPI.Infrastructure.Firebase;
+using FinTechAPI.Infrastructure.Firebase.Documents;
+using Google.Cloud.Firestore;
 
 namespace FinTechAPI.Infrastructure.Services
 {
     public class AccountService : IAccountService
     {
-        private readonly FinTechDbContext _context;
+        private readonly FirestoreProvider _firestore;
         private readonly IMapper _mapper;
 
-        public AccountService(FinTechDbContext context, IMapper mapper)
+        public AccountService(FirestoreProvider firestore, IMapper mapper)
         {
-            _context = context;
+            _firestore = firestore;
             _mapper = mapper;
         }
 
         public async Task<IEnumerable<AccountDto>> GetAccountsByUserIdAsync(string userId)
         {
-            return await _context.Accounts
-                .Where(a => a.UserId == userId)
-                .ProjectTo<AccountDto>(_mapper.ConfigurationProvider)
-                .ToListAsync();
+            var snapshot = await _firestore.Accounts
+                .WhereEqualTo("userId", userId)
+                .GetSnapshotAsync();
+
+            return snapshot.Documents.Select(doc =>
+            {
+                var a = doc.ConvertTo<AccountDocument>();
+                return _mapper.Map<AccountDto>(ToAccount(a));
+            });
         }
 
-        public async Task<Account?> GetAccountByIdAsync(int accountId, string userId)
+        public async Task<Account?> GetAccountByIdAsync(string accountId, string userId)
         {
-            return await _context.Accounts
-                .FirstOrDefaultAsync(a => a.Id == accountId && a.UserId == userId);
+            var snapshot = await _firestore.Accounts.Document(accountId).GetSnapshotAsync();
+            if (!snapshot.Exists) return null;
+            var doc = snapshot.ConvertTo<AccountDocument>();
+            return doc.UserId != userId ? null : ToAccount(doc);
         }
 
         public async Task<Account> CreateAccountAsync(Account account, string userId)
         {
-            account.UserId = userId;
+            account.UserId    = userId;
             account.CreatedAt = DateTime.UtcNow;
             account.UpdatedAt = DateTime.UtcNow;
 
-            _context.Accounts.Add(account);
-            await _context.SaveChangesAsync();
+            var docRef = _firestore.Accounts.Document();
+            account.Id = docRef.Id;
+            await docRef.SetAsync(ToDocument(account));
             return account;
         }
 
-        public async Task<Account?> UpdateAccountAsync(int accountId, Account accountDetails, string userId)
+        public async Task<Account?> UpdateAccountAsync(string accountId, Account accountDetails, string userId)
         {
-            var existingAccount = await _context.Accounts
-                .FirstOrDefaultAsync(a => a.Id == accountId && a.UserId == userId);
+            var docRef   = _firestore.Accounts.Document(accountId);
+            var snapshot = await docRef.GetSnapshotAsync();
+            if (!snapshot.Exists) return null;
 
-            if (existingAccount == null)
-                return null;
+            var existing = snapshot.ConvertTo<AccountDocument>();
+            if (existing.UserId != userId) return null;
 
-            existingAccount.Name = accountDetails.Name;
-            existingAccount.AccountType = accountDetails.AccountType;
-            existingAccount.Currency = accountDetails.Currency;
-            existingAccount.UpdatedAt = DateTime.UtcNow;
-
-            try
+            await docRef.UpdateAsync(new Dictionary<string, object>
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await AccountExistsAsync(accountId, userId))
-                    return null;
-                throw;
-            }
+                ["name"]        = accountDetails.Name,
+                ["accountType"] = (int)accountDetails.AccountType,
+                ["currency"]    = (int)accountDetails.Currency,
+                ["updatedAt"]   = Timestamp.GetCurrentTimestamp()
+            });
 
-            return existingAccount;
+            existing.Name        = accountDetails.Name;
+            existing.AccountType = (int)accountDetails.AccountType;
+            existing.Currency    = (int)accountDetails.Currency;
+            return ToAccount(existing);
         }
 
-        public async Task<bool> DeleteAccountAsync(int accountId, string userId)
+        public async Task<bool> DeleteAccountAsync(string accountId, string userId)
         {
-            var account = await _context.Accounts
-                .FirstOrDefaultAsync(a => a.Id == accountId && a.UserId == userId);
-
-            if (account == null)
-                return false;
-
-            _context.Accounts.Remove(account);
-            await _context.SaveChangesAsync();
+            var snapshot = await _firestore.Accounts.Document(accountId).GetSnapshotAsync();
+            if (!snapshot.Exists) return false;
+            var doc = snapshot.ConvertTo<AccountDocument>();
+            if (doc.UserId != userId) return false;
+            await _firestore.Accounts.Document(accountId).DeleteAsync();
             return true;
         }
 
-        public async Task<bool> AccountExistsAsync(int accountId, string userId)
+        public async Task<bool> AccountExistsAsync(string accountId, string userId)
         {
-            return await _context.Accounts.AnyAsync(e => e.Id == accountId && e.UserId == userId);
+            var snapshot = await _firestore.Accounts.Document(accountId).GetSnapshotAsync();
+            if (!snapshot.Exists) return false;
+            var doc = snapshot.ConvertTo<AccountDocument>();
+            return doc.UserId == userId;
         }
+
+        private static Account ToAccount(AccountDocument d) => new()
+        {
+            Id          = d.Id,
+            Name        = d.Name,
+            AccountType = (AccountType)d.AccountType,
+            Balance     = (decimal)d.Balance,
+            Currency    = (Currency)d.Currency,
+            UserId      = d.UserId,
+            CreatedAt   = d.CreatedAt.ToDateTime(),
+            UpdatedAt   = d.UpdatedAt.ToDateTime()
+        };
+
+        private static AccountDocument ToDocument(Account a) => new()
+        {
+            Id          = a.Id,
+            Name        = a.Name,
+            AccountType = (int)a.AccountType,
+            Balance     = (double)a.Balance,
+            Currency    = (int)a.Currency,
+            UserId      = a.UserId,
+            CreatedAt   = Timestamp.FromDateTime(a.CreatedAt.ToUniversalTime()),
+            UpdatedAt   = Timestamp.FromDateTime(a.UpdatedAt.ToUniversalTime())
+        };
     }
 }
