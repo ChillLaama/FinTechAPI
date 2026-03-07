@@ -23,23 +23,42 @@ public static class DependencyInjectionConfig
         // ── Firebase initialisation ──────────────────────────────────────
         var firebaseSection = configuration.GetSection("Firebase");
 
-        if (FirebaseApp.DefaultInstance == null)
+        var serviceAccountPath = firebaseSection["ServiceAccountPath"];
+        GoogleCredential credential;
+
+        // Resolve path relative to the executable directory
+        if (!string.IsNullOrEmpty(serviceAccountPath))
         {
-            var serviceAccountPath = firebaseSection["ServiceAccountPath"];
-            GoogleCredential credential;
+            var absolutePath = Path.IsPathRooted(serviceAccountPath)
+                ? serviceAccountPath
+                : Path.Combine(AppContext.BaseDirectory, serviceAccountPath);
 
-            if (!string.IsNullOrEmpty(serviceAccountPath) && File.Exists(serviceAccountPath))
-                credential = GoogleCredential.FromFile(serviceAccountPath);
+            if (File.Exists(absolutePath))
+                credential = GoogleCredential.FromFile(absolutePath);
             else
-                credential = GoogleCredential.GetApplicationDefault();
-
-            FirebaseApp.Create(new AppOptions { Credential = credential });
+                throw new FileNotFoundException(
+                    $"Firebase service account file not found at: {absolutePath}\n" +
+                    $"Place 'firebase-service-account.json' in the API output directory or set an absolute path in appsettings.json.");
         }
+        else
+        {
+            credential = GoogleCredential.GetApplicationDefault();
+        }
+
+        if (FirebaseApp.DefaultInstance == null)
+            FirebaseApp.Create(new AppOptions { Credential = credential });
 
         var projectId = firebaseSection["ProjectId"]
             ?? throw new InvalidOperationException("Firebase:ProjectId is not configured.");
 
-        services.AddSingleton(_ => FirestoreDb.Create(projectId));
+        // Use FirestoreDbBuilder with explicit credential — avoids ADC lookup
+        services.AddSingleton(_ => new FirestoreDbBuilder
+        {
+            ProjectId  = projectId,
+            Credential = credential.IsCreateScopedRequired
+                ? credential.CreateScoped("https://www.googleapis.com/auth/datastore")
+                : credential
+        }.Build());
         services.AddSingleton<FirestoreProvider>();
         services.Configure<FirebaseSettings>(firebaseSection);
 
