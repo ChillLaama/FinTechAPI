@@ -29,7 +29,7 @@ import {
 } from "../api/client";
 import type { ApiAccount, ApiTransaction } from "../api/client";
 
-function formatMoney(amount: number, currencyCode = "RUB"): string {
+function formatMoney(amount: number, currencyCode = "EUR"): string {
   return `${currencyCode} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

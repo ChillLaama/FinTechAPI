@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   createTransaction,
+  currencyLabels,
   getAccounts,
   getCurrencyLabel,
   toCurrencyValue,
@@ -40,7 +41,7 @@ export function CreatePayment() {
 
   const [formData, setFormData] = useState({
     amount: "",
-    currency: "RUB",
+    currency: "EUR",
     recipient: "",
     description: "",
   });
@@ -108,7 +109,7 @@ export function CreatePayment() {
   const resetForm = () => {
     setFormData({
       amount: "",
-      currency: "RUB",
+      currency: "EUR",
       recipient: "",
       description: "",
     });
@@ -155,9 +156,9 @@ export function CreatePayment() {
                 value={formData.currency}
                 onChange={(event) => setFormData({ ...formData, currency: event.target.value })}
               >
-                <option value="RUB">RUB - Russian Ruble</option>
-                <option value="USD">USD - US Dollar</option>
-                <option value="EUR">EUR - Euro</option>
+                {Object.entries(currencyLabels).map(([value, label]) => (
+                  <option key={value} value={label}>{label}</option>
+                ))}
               </select>
             </div>
 

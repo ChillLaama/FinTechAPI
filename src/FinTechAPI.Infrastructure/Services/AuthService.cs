@@ -59,7 +59,7 @@ namespace FinTechAPI.Infrastructure.Services
                     Name        = "Main",
                     AccountType = (int)AccountType.Checking,
                     Balance     = 0,
-                    Currency    = (int)Currency.USD,
+                    Currency    = (int)Currency.EUR,
                     UserId      = userRecord.Uid,
                     CreatedAt   = Timestamp.GetCurrentTimestamp(),
                     UpdatedAt   = Timestamp.GetCurrentTimestamp()

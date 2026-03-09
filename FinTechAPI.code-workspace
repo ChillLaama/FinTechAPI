@@ -1,0 +1,164 @@
+{
+  "folders": [
+    {
+      "name": "Root",
+      "path": "."
+    },
+    {
+      "name": "Client",
+      "path": "src/FinTechAPI.Client"
+    },
+    {
+      "name": "Design",
+      "path": "src/Design"
+    }
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "editor.rulers": [120],
+    "files.exclude": {
+      "**/bin": true,
+      "**/obj": true,
+      "**/.idea": true
+    },
+    "[typescript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescriptreact]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[csharp]": {
+      "editor.defaultFormatter": "ms-dotnettools.csharp"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-dotnettools.csdevkit",
+      "ms-dotnettools.csharp",
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
+      "bradlc.vscode-tailwindcss",
+      "formulahendry.auto-rename-tag"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "API (dotnet)",
+        "type": "coreclr",
+        "request": "launch",
+        "preLaunchTask": "build: API",
+        "program": "${workspaceFolder:Root}/src/FinTechAPI.API/bin/Debug/net9.0/FinTechAPI.API.dll",
+        "args": [],
+        "cwd": "${workspaceFolder:Root}/src/FinTechAPI.API",
+        "stopAtEntry": false,
+        "env": {
+          "ASPNETCORE_ENVIRONMENT": "Development",
+          "ASPNETCORE_URLS": "http://localhost:5000"
+        },
+        "sourceFileMap": {
+          "/Views": "${workspaceFolder:Root}"
+        }
+      },
+      {
+        "name": "Client (vite dev)",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "npm",
+        "runtimeArgs": ["run", "dev"],
+        "cwd": "${workspaceFolder:Client}",
+        "console": "integratedTerminal",
+        "skipFiles": ["<node_internals>/**"]
+      },
+      {
+        "name": "Design (vite dev)",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "npm",
+        "runtimeArgs": ["run", "dev"],
+        "cwd": "${workspaceFolder:Design}",
+        "console": "integratedTerminal",
+        "skipFiles": ["<node_internals>/**"]
+      }
+    ],
+    "compounds": [
+      {
+        "name": "API + Client",
+        "configurations": ["API (dotnet)", "Client (vite dev)"]
+      },
+      {
+        "name": "API + Client + Design",
+        "configurations": ["API (dotnet)", "Client (vite dev)", "Design (vite dev)"]
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "build: API",
+        "command": "dotnet",
+        "type": "process",
+        "args": [
+          "build",
+          "${workspaceFolder:Root}/src/FinTechAPI.API/FinTechAPI.API.csproj",
+          "/property:GenerateFullPaths=true",
+          "/consoleloggerparameters:NoSummary"
+        ],
+        "problemMatcher": "$msCompile",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        }
+      },
+      {
+        "label": "build: Solution",
+        "command": "dotnet",
+        "type": "process",
+        "args": [
+          "build",
+          "${workspaceFolder:Root}/FinTechAPI.sln",
+          "/property:GenerateFullPaths=true",
+          "/consoleloggerparameters:NoSummary"
+        ],
+        "problemMatcher": "$msCompile",
+        "group": "build"
+      },
+      {
+        "label": "test: All",
+        "command": "dotnet",
+        "type": "process",
+        "args": [
+          "test",
+          "${workspaceFolder:Root}/tests/FinTechAPI.Tests/FinTechAPI.Tests.csproj",
+          "--logger",
+          "console;verbosity=detailed"
+        ],
+        "problemMatcher": "$msCompile",
+        "group": {
+          "kind": "test",
+          "isDefault": true
+        }
+      },
+      {
+        "label": "client: install",
+        "type": "shell",
+        "command": "npm install",
+        "options": {
+          "cwd": "${workspaceFolder:Client}"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "client: build",
+        "type": "shell",
+        "command": "npm run build",
+        "options": {
+          "cwd": "${workspaceFolder:Client}"
+        },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

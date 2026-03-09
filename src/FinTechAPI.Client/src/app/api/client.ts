@@ -43,18 +43,17 @@ export interface RegisterPayload {
   password: string;
 }
 
-const currencyLabels = [
-  "USD",
-  "EUR",
-  "GBP",
-  "JPY",
-  "CNY",
-  "RUB",
-  "AUD",
-  "CAD",
-  "CHF",
-  "INR",
-] as const;
+export const currencyLabels: Record<number, string> = {
+  0: "USD",
+  1: "EUR",
+  2: "GBP",
+  3: "JPY",
+  4: "CNY",
+  6: "AUD",
+  7: "CAD",
+  8: "CHF",
+  9: "INR",
+} as const;
 
 const transactionTypeLabels = ["Income", "Expense", "Transfer"] as const;
 
@@ -132,8 +131,8 @@ export function getTransactionTypeLabel(value: number | string): string {
 }
 
 export function toCurrencyValue(value: string): number {
-  const index = currencyLabels.findIndex((entry) => entry === value);
-  return index >= 0 ? index : 5;
+  const entry = Object.entries(currencyLabels).find(([, label]) => label === value);
+  return entry ? Number(entry[0]) : 1; // default EUR
 }
 
 export const transactionTypeValues = {
