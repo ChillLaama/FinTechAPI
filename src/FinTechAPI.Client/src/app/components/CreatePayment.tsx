@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   createTransaction,
+  currencyLabels,
   getAccounts,
   getCurrencyLabel,
   toCurrencyValue,
@@ -40,7 +41,7 @@ export function CreatePayment() {
 
   const [formData, setFormData] = useState({
     amount: "",
-    currency: "RUB",
+    currency: "EUR",
     recipient: "",
     description: "",
   });
@@ -54,7 +55,10 @@ export function CreatePayment() {
         const accountsData = await getAccounts();
         setAccounts(accountsData);
       } catch (requestError) {
-        const message = requestError instanceof Error ? requestError.message : "Failed to load accounts";
+        const message =
+          requestError instanceof Error
+            ? requestError.message
+            : "Failed to load accounts";
         setFormError(message);
       } finally {
         setLoadingAccounts(false);
@@ -95,7 +99,10 @@ export function CreatePayment() {
         message: "Payment was successfully created via FinTech API.",
       });
     } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : "Payment was not created";
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : "Payment was not created";
       setResult({
         success: false,
         message,
@@ -108,7 +115,7 @@ export function CreatePayment() {
   const resetForm = () => {
     setFormData({
       amount: "",
-      currency: "RUB",
+      currency: "EUR",
       recipient: "",
       description: "",
     });
@@ -120,12 +127,17 @@ export function CreatePayment() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate("/")} className="p-2 rounded-lg hover:bg-secondary transition-colors">
+        <button
+          onClick={() => navigate("/")}
+          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+        >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
           <h1 className="text-3xl mb-2">Create payment</h1>
-          <p className="text-muted-foreground">Create an expense transaction via FinTech API</p>
+          <p className="text-muted-foreground">
+            Create an expense transaction via FinTech API
+          </p>
         </div>
       </div>
 
@@ -143,7 +155,9 @@ export function CreatePayment() {
                   placeholder="0.00"
                   className="w-full pl-12 pr-4 py-3 bg-input-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                   value={formData.amount}
-                  onChange={(event) => setFormData({ ...formData, amount: event.target.value })}
+                  onChange={(event) =>
+                    setFormData({ ...formData, amount: event.target.value })
+                  }
                 />
               </div>
             </div>
@@ -153,11 +167,15 @@ export function CreatePayment() {
               <select
                 className="w-full px-4 py-3 bg-input-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                 value={formData.currency}
-                onChange={(event) => setFormData({ ...formData, currency: event.target.value })}
+                onChange={(event) =>
+                  setFormData({ ...formData, currency: event.target.value })
+                }
               >
-                <option value="RUB">RUB - Russian Ruble</option>
-                <option value="USD">USD - US Dollar</option>
-                <option value="EUR">EUR - Euro</option>
+                {Object.entries(currencyLabels).map(([value, label]) => (
+                  <option key={value} value={label}>
+                    {label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -169,7 +187,9 @@ export function CreatePayment() {
                 placeholder="Enter recipient or company name"
                 className="w-full px-4 py-3 bg-input-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                 value={formData.recipient}
-                onChange={(event) => setFormData({ ...formData, recipient: event.target.value })}
+                onChange={(event) =>
+                  setFormData({ ...formData, recipient: event.target.value })
+                }
               />
             </div>
 
@@ -181,7 +201,9 @@ export function CreatePayment() {
                 placeholder="Describe the payment purpose"
                 className="w-full px-4 py-3 bg-input-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 value={formData.description}
-                onChange={(event) => setFormData({ ...formData, description: event.target.value })}
+                onChange={(event) =>
+                  setFormData({ ...formData, description: event.target.value })
+                }
               />
             </div>
 
@@ -230,7 +252,9 @@ export function CreatePayment() {
 
             <div>
               <h2 className="text-2xl mb-2">Processing payment</h2>
-              <p className="text-muted-foreground">Sending transaction to API...</p>
+              <p className="text-muted-foreground">
+                Sending transaction to API...
+              </p>
             </div>
           </div>
         </div>
@@ -252,7 +276,11 @@ export function CreatePayment() {
             </div>
 
             <div>
-              <h2 className="text-2xl mb-2">{result.success ? "Payment sent successfully" : "Payment failed"}</h2>
+              <h2 className="text-2xl mb-2">
+                {result.success
+                  ? "Payment sent successfully"
+                  : "Payment failed"}
+              </h2>
               <p className="text-muted-foreground">{result.message}</p>
             </div>
 
@@ -260,16 +288,31 @@ export function CreatePayment() {
               <div className="max-w-md mx-auto space-y-4">
                 <div className="bg-secondary/30 p-4 rounded-lg space-y-3 text-left">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Transaction ID</span>
-                    <code className="text-sm font-mono">#{result.transaction.id}</code>
+                    <span className="text-sm text-muted-foreground">
+                      Transaction ID
+                    </span>
+                    <code className="text-sm font-mono">
+                      #{result.transaction.id}
+                    </code>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Amount</span>
-                    <span className="text-sm">{formatMoney(result.transaction.amount, getCurrencyLabel(result.transaction.currency))}</span>
+                    <span className="text-sm text-muted-foreground">
+                      Amount
+                    </span>
+                    <span className="text-sm">
+                      {formatMoney(
+                        result.transaction.amount,
+                        getCurrencyLabel(result.transaction.currency),
+                      )}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Account</span>
-                    <span className="text-sm">{selectedAccount?.name || result.transaction.accountId}</span>
+                    <span className="text-sm text-muted-foreground">
+                      Account
+                    </span>
+                    <span className="text-sm">
+                      {selectedAccount?.name || result.transaction.accountId}
+                    </span>
                   </div>
                 </div>
               </div>

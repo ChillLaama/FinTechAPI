@@ -43,22 +43,24 @@ export interface RegisterPayload {
   password: string;
 }
 
-const currencyLabels = [
-  "USD",
-  "EUR",
-  "GBP",
-  "JPY",
-  "CNY",
-  "RUB",
-  "AUD",
-  "CAD",
-  "CHF",
-  "INR",
-] as const;
+export const currencyLabels: Record<number, string> = {
+  0: "USD",
+  1: "EUR",
+  2: "GBP",
+  3: "JPY",
+  4: "CNY",
+  6: "AUD",
+  7: "CAD",
+  8: "CHF",
+  9: "INR",
+} as const;
 
 const transactionTypeLabels = ["Income", "Expense", "Transfer"] as const;
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(
+  /\/$/,
+  "",
+);
 
 function getStoredToken(): string | null {
   return localStorage.getItem("fintech_token") || localStorage.getItem("token");
@@ -97,9 +99,14 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
       const data = (await response.json()) as ApiError | ApiIdentityError[];
 
       if (Array.isArray(data)) {
-        errorMessage = data.map((item) => item.description || item.code).filter(Boolean).join("; ") || errorMessage;
+        errorMessage =
+          data
+            .map((item) => item.description || item.code)
+            .filter(Boolean)
+            .join("; ") || errorMessage;
       } else {
-        errorMessage = data.message || data.title || data.description || errorMessage;
+        errorMessage =
+          data.message || data.title || data.description || errorMessage;
       }
     } catch {
       // ignore JSON parse errors for non-JSON responses
@@ -132,8 +139,10 @@ export function getTransactionTypeLabel(value: number | string): string {
 }
 
 export function toCurrencyValue(value: string): number {
-  const index = currencyLabels.findIndex((entry) => entry === value);
-  return index >= 0 ? index : 5;
+  const entry = Object.entries(currencyLabels).find(
+    ([, label]) => label === value,
+  );
+  return entry ? Number(entry[0]) : 1; // default EUR
 }
 
 export const transactionTypeValues = {

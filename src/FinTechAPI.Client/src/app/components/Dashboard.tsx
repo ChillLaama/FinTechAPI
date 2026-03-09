@@ -29,7 +29,7 @@ import {
 } from "../api/client";
 import type { ApiAccount, ApiTransaction } from "../api/client";
 
-function formatMoney(amount: number, currencyCode = "RUB"): string {
+function formatMoney(amount: number, currencyCode = "EUR"): string {
   return `${currencyCode} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -88,7 +88,10 @@ export function Dashboard() {
         setTransactions(transactionsData);
         setLatencySamples((previous) => [...previous.slice(-6), latency]);
       } catch (requestError) {
-        const message = requestError instanceof Error ? requestError.message : "Failed to load data";
+        const message =
+          requestError instanceof Error
+            ? requestError.message
+            : "Failed to load data";
         setError(message);
       } finally {
         setLoading(false);
@@ -98,7 +101,10 @@ export function Dashboard() {
     loadData();
   }, []);
 
-  const totalBalance = useMemo(() => accounts.reduce((sum, account) => sum + account.balance, 0), [accounts]);
+  const totalBalance = useMemo(
+    () => accounts.reduce((sum, account) => sum + account.balance, 0),
+    [accounts],
+  );
 
   const daysToShow = period === "7d" ? 7 : 30;
   const chartData = useMemo(() => {
@@ -122,7 +128,10 @@ export function Dashboard() {
         .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
 
       result.push({
-        date: date.toLocaleDateString("en-US", { day: "2-digit", month: "2-digit" }),
+        date: date.toLocaleDateString("en-US", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
         amount: dayTurnover,
       });
     }
@@ -131,7 +140,14 @@ export function Dashboard() {
   }, [daysToShow, transactions]);
 
   const recentTransactions = useMemo(
-    () => [...transactions].sort((first, second) => new Date(second.transactionDate).getTime() - new Date(first.transactionDate).getTime()).slice(0, 5),
+    () =>
+      [...transactions]
+        .sort(
+          (first, second) =>
+            new Date(second.transactionDate).getTime() -
+            new Date(first.transactionDate).getTime(),
+        )
+        .slice(0, 5),
     [transactions],
   );
 
@@ -140,8 +156,14 @@ export function Dashboard() {
       return { income: 0, expense: 0, transfer: 0 };
     }
 
-    const incomeCount = transactions.filter((transaction) => getTransactionTypeLabel(transaction.type).toLowerCase() === "income").length;
-    const expenseCount = transactions.filter((transaction) => getTransactionTypeLabel(transaction.type).toLowerCase() === "expense").length;
+    const incomeCount = transactions.filter(
+      (transaction) =>
+        getTransactionTypeLabel(transaction.type).toLowerCase() === "income",
+    ).length;
+    const expenseCount = transactions.filter(
+      (transaction) =>
+        getTransactionTypeLabel(transaction.type).toLowerCase() === "expense",
+    ).length;
     const transferCount = transactions.length - incomeCount - expenseCount;
 
     return {
@@ -152,7 +174,11 @@ export function Dashboard() {
   }, [transactions]);
 
   const latencyData = useMemo(
-    () => latencySamples.map((value, index) => ({ time: `${index + 1}`, ms: Number(value.toFixed(2)) })),
+    () =>
+      latencySamples.map((value, index) => ({
+        time: `${index + 1}`,
+        ms: Number(value.toFixed(2)),
+      })),
     [latencySamples],
   );
 
@@ -161,11 +187,16 @@ export function Dashboard() {
       return 0;
     }
 
-    return latencySamples.reduce((sum, value) => sum + value, 0) / latencySamples.length;
+    return (
+      latencySamples.reduce((sum, value) => sum + value, 0) /
+      latencySamples.length
+    );
   }, [latencySamples]);
 
   if (loading) {
-    return <div className="text-muted-foreground">Loading dashboard data...</div>;
+    return (
+      <div className="text-muted-foreground">Loading dashboard data...</div>
+    );
   }
 
   if (error) {
@@ -184,7 +215,9 @@ export function Dashboard() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of financial operations from live API data</p>
+          <p className="text-muted-foreground">
+            Overview of financial operations from live API data
+          </p>
         </div>
 
         <Link
@@ -199,11 +232,18 @@ export function Dashboard() {
       <div className="bg-gradient-to-br from-primary to-accent p-8 rounded-xl shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-primary-foreground/80 mb-2">Total account balance</p>
-            <h2 className="text-5xl text-primary-foreground">{formatMoney(totalBalance)}</h2>
+            <p className="text-primary-foreground/80 mb-2">
+              Total account balance
+            </p>
+            <h2 className="text-5xl text-primary-foreground">
+              {formatMoney(totalBalance)}
+            </h2>
             <div className="flex items-center gap-2 mt-4 text-primary-foreground/90">
               <TrendingUp className="w-4 h-4" />
-              <span className="text-sm">Accounts: {accounts.length} · Transactions: {transactions.length}</span>
+              <span className="text-sm">
+                Accounts: {accounts.length} · Transactions:{" "}
+                {transactions.length}
+              </span>
             </div>
           </div>
 
@@ -212,7 +252,9 @@ export function Dashboard() {
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-primary-foreground" />
                 <div>
-                  <p className="text-xs text-primary-foreground/80">Data source</p>
+                  <p className="text-xs text-primary-foreground/80">
+                    Data source
+                  </p>
                   <p className="text-sm text-primary-foreground">FinTech API</p>
                 </div>
               </div>
@@ -224,12 +266,16 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-card p-6 rounded-xl border border-border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-muted-foreground">Turnover for {period === "7d" ? "7 days" : "30 days"}</h3>
+            <h3 className="text-muted-foreground">
+              Turnover for {period === "7d" ? "7 days" : "30 days"}
+            </h3>
             <div className="flex gap-2">
               <button
                 onClick={() => setPeriod("7d")}
                 className={`px-3 py-1 rounded-md text-xs transition-colors ${
-                  period === "7d" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                  period === "7d"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
                 }`}
               >
                 7d
@@ -237,7 +283,9 @@ export function Dashboard() {
               <button
                 onClick={() => setPeriod("30d")}
                 className={`px-3 py-1 rounded-md text-xs transition-colors ${
-                  period === "30d" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                  period === "30d"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
                 }`}
               >
                 30d
@@ -263,7 +311,13 @@ export function Dashboard() {
                     borderRadius: "8px",
                   }}
                 />
-                <Area type="monotone" dataKey="amount" stroke="#06b6d4" strokeWidth={2} fill="url(#colorAmount)" />
+                <Area
+                  type="monotone"
+                  dataKey="amount"
+                  stroke="#06b6d4"
+                  strokeWidth={2}
+                  fill="url(#colorAmount)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -278,30 +332,45 @@ export function Dashboard() {
             <div>
               <div className="flex justify-between mb-2">
                 <span className="text-sm">Income</span>
-                <span className="text-success">{typeDistribution.income.toFixed(1)}%</span>
+                <span className="text-success">
+                  {typeDistribution.income.toFixed(1)}%
+                </span>
               </div>
               <div className="w-full bg-secondary rounded-full h-2">
-                <div className="bg-success h-2 rounded-full" style={{ width: `${typeDistribution.income}%` }} />
+                <div
+                  className="bg-success h-2 rounded-full"
+                  style={{ width: `${typeDistribution.income}%` }}
+                />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between mb-2">
                 <span className="text-sm">Expense</span>
-                <span className="text-warning">{typeDistribution.expense.toFixed(1)}%</span>
+                <span className="text-warning">
+                  {typeDistribution.expense.toFixed(1)}%
+                </span>
               </div>
               <div className="w-full bg-secondary rounded-full h-2">
-                <div className="bg-warning h-2 rounded-full" style={{ width: `${typeDistribution.expense}%` }} />
+                <div
+                  className="bg-warning h-2 rounded-full"
+                  style={{ width: `${typeDistribution.expense}%` }}
+                />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between mb-2">
                 <span className="text-sm">Transfer</span>
-                <span className="text-accent">{typeDistribution.transfer.toFixed(1)}%</span>
+                <span className="text-accent">
+                  {typeDistribution.transfer.toFixed(1)}%
+                </span>
               </div>
               <div className="w-full bg-secondary rounded-full h-2">
-                <div className="bg-accent h-2 rounded-full" style={{ width: `${typeDistribution.transfer}%` }} />
+                <div
+                  className="bg-accent h-2 rounded-full"
+                  style={{ width: `${typeDistribution.transfer}%` }}
+                />
               </div>
             </div>
           </div>
@@ -325,12 +394,20 @@ export function Dashboard() {
                     borderRadius: "8px",
                   }}
                 />
-                <Line type="monotone" dataKey="ms" stroke="#06b6d4" strokeWidth={2} dot={{ fill: "#06b6d4", r: 3 }} />
+                <Line
+                  type="monotone"
+                  dataKey="ms"
+                  stroke="#06b6d4"
+                  strokeWidth={2}
+                  dot={{ fill: "#06b6d4", r: 3 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
           <div className="mt-4 text-center">
-            <p className="text-2xl text-accent">{averageLatency.toFixed(2)}ms</p>
+            <p className="text-2xl text-accent">
+              {averageLatency.toFixed(2)}ms
+            </p>
             <p className="text-xs text-muted-foreground">Average latency</p>
           </div>
         </div>
@@ -339,7 +416,10 @@ export function Dashboard() {
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-6 border-b border-border flex items-center justify-between">
           <h2>Recent transactions</h2>
-          <Link to="/transactions" className="text-sm text-accent hover:text-accent/80 transition-colors">
+          <Link
+            to="/transactions"
+            className="text-sm text-accent hover:text-accent/80 transition-colors"
+          >
             View all →
           </Link>
         </div>
@@ -348,35 +428,63 @@ export function Dashboard() {
           <table className="w-full">
             <thead className="bg-secondary/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">Description</th>
-                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                  ID
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                  Amount
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                  Date
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {recentTransactions.map((transaction) => {
                 const badge = mapTypeBadge(transaction.type);
                 return (
-                  <tr key={transaction.id} className="hover:bg-secondary/30 transition-colors">
+                  <tr
+                    key={transaction.id}
+                    className="hover:bg-secondary/30 transition-colors"
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {badge.icon}
-                        <span className="text-sm font-mono">#{transaction.id}</span>
+                        <span className="text-sm font-mono">
+                          #{transaction.id}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm">{transaction.description || "—"}</span>
+                      <span className="text-sm">
+                        {transaction.description || "—"}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm">{formatMoney(transaction.amount, getCurrencyLabel(transaction.currency))}</span>
+                      <span className="text-sm">
+                        {formatMoney(
+                          transaction.amount,
+                          getCurrencyLabel(transaction.currency),
+                        )}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-md border text-xs ${badge.className}`}>{badge.label}</span>
+                      <span
+                        className={`px-2 py-1 rounded-md border text-xs ${badge.className}`}
+                      >
+                        {badge.label}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-muted-foreground">{formatDateLabel(transaction.transactionDate)}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {formatDateLabel(transaction.transactionDate)}
+                      </span>
                     </td>
                   </tr>
                 );
@@ -384,7 +492,9 @@ export function Dashboard() {
             </tbody>
           </table>
           {recentTransactions.length === 0 && (
-            <div className="p-10 text-center text-muted-foreground">No transactions to display</div>
+            <div className="p-10 text-center text-muted-foreground">
+              No transactions to display
+            </div>
           )}
         </div>
       </div>
