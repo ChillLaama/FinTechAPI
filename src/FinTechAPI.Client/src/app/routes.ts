@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
 import { AuthLayout } from "./components/AuthLayout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Dashboard } from "./components/Dashboard";
 import { Transactions } from "./components/Transactions";
 import { CreatePayment } from "./components/CreatePayment";
@@ -15,13 +16,18 @@ import { ResetPassword } from "./components/ResetPassword";
 export const router = createBrowserRouter([
   {
     path: "/",
-    Component: Layout,
+    Component: ProtectedRoute,
     children: [
-      { index: true, Component: Dashboard },
-      { path: "transactions", Component: Transactions },
-      { path: "create-payment", Component: CreatePayment },
-      { path: "profile", Component: Profile },
-      { path: "settings", Component: Settings },
+      {
+        Component: Layout,
+        children: [
+          { index: true, Component: Dashboard },
+          { path: "transactions", Component: Transactions },
+          { path: "create-payment", Component: CreatePayment },
+          { path: "profile", Component: Profile },
+          { path: "settings", Component: Settings },
+        ],
+      },
     ],
   },
   {

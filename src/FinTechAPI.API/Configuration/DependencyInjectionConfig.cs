@@ -5,6 +5,7 @@ using FinTechAPI.API.Auth;
 using FinTechAPI.Application.Interfaces;
 using FinTechAPI.Application.Mappings;
 using FinTechAPI.Infrastructure.Firebase;
+using FinTechAPI.Infrastructure.Payments;
 using FinTechAPI.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.OpenApi.Models;
@@ -61,10 +62,12 @@ public static class DependencyInjectionConfig
         }.Build());
         services.AddSingleton<FirestoreProvider>();
         services.Configure<FirebaseSettings>(firebaseSection);
+        services.Configure<StripeSettings>(configuration.GetSection("Stripe"));
 
         // ── Application services ─────────────────────────────────────────
         services.AddScoped<IAuthService,        AuthService>();
         services.AddScoped<IAccountService,     AccountService>();
+        services.AddScoped<IPaymentService,     PaymentService>();
         services.AddScoped<IReportingService,   ReportingService>();
         services.AddScoped<ISecurityService,    SecurityService>();
         services.AddScoped<ITransactionService, TransactionService>();

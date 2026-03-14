@@ -14,6 +14,7 @@ namespace FinTechAPI.Infrastructure.Firebase
         public FirestoreDb Db => _db;
         public CollectionReference Accounts => _db.Collection("accounts");
         public CollectionReference Transactions => _db.Collection("transactions");
+        public CollectionReference Payments => _db.Collection("payments");
         public CollectionReference Users => _db.Collection("users");
     }
 }
