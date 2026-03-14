@@ -2,15 +2,15 @@
   "folders": [
     {
       "name": "Root",
-      "path": "."
+      "path": "../.."
     },
     {
       "name": "Client",
-      "path": "src/FinTechAPI.Client"
+      "path": "../../src/FinTechAPI.Client"
     },
     {
       "name": "Design",
-      "path": "src/Design"
+      "path": "../../src/Design"
     }
   ],
   "settings": {
