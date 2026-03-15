@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FinTechAPI.API.Controllers;
 using FinTechAPI.Application.DTOs;
+using FinTechAPI.Application.Exceptions;
 using FinTechAPI.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -87,6 +88,79 @@ namespace FinTechAPI.Tests.Controllers
             var result = await _controller.GetPayment("pay-x");
 
             Assert.IsType<NotFoundResult>(result.Result);
+        }
+
+        [Fact]
+        public async Task GetPayment_ShouldReturnOk_WhenFound()
+        {
+            var dto = new PaymentDto
+            {
+                Id = "pay-1",
+                UserId = UserId,
+                Amount = 25.00m,
+                Currency = "usd",
+                Status = "succeeded",
+                StripePaymentIntentId = "pi_abc",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
+
+            _mockService
+                .Setup(service => service.GetPaymentByIdAsync("pay-1", UserId))
+                .ReturnsAsync(dto);
+
+            var result = await _controller.GetPayment("pay-1");
+
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.Equal(dto, ok.Value);
+        }
+
+        // ── Exception-handling contracts ────────────────────────────────────
+
+        [Fact]
+        public async Task CreatePaymentIntent_Returns503_WhenStripeNotConfigured()
+        {
+            _controller.HttpContext.Request.Headers["Idempotency-Key"] = "idem-503";
+            _mockService
+                .Setup(s => s.CreatePaymentIntentAsync(
+                    It.IsAny<CreatePaymentIntentDto>(), UserId, "idem-503"))
+                .ThrowsAsync(new PaymentConfigurationException("Stripe:ApiKey is not configured."));
+
+            var result = await _controller.CreatePaymentIntent(
+                new CreatePaymentIntentDto { Amount = 10m, Currency = "usd" });
+
+            var status = Assert.IsType<ObjectResult>(result.Result);
+            Assert.Equal(503, status.StatusCode);
+        }
+
+        [Fact]
+        public async Task CreatePaymentIntent_Returns502_WhenStripeRejectsRequest()
+        {
+            _controller.HttpContext.Request.Headers["Idempotency-Key"] = "idem-502";
+            _mockService
+                .Setup(s => s.CreatePaymentIntentAsync(
+                    It.IsAny<CreatePaymentIntentDto>(), UserId, "idem-502"))
+                .ThrowsAsync(new PaymentProviderException("Your card was declined.", "card_declined"));
+
+            var result = await _controller.CreatePaymentIntent(
+                new CreatePaymentIntentDto { Amount = 10m, Currency = "usd" });
+
+            var status = Assert.IsType<ObjectResult>(result.Result);
+            Assert.Equal(502, status.StatusCode);
+        }
+
+        [Fact]
+        public async Task StripeWebhook_Returns503_WhenWebhookSecretNotConfigured()
+        {
+            _controller.HttpContext.Request.Headers["Stripe-Signature"] = "t=1,v1=sig";
+            _mockService
+                .Setup(s => s.HandleStripeWebhookAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ThrowsAsync(new PaymentConfigurationException("Stripe:WebhookSecret is not configured."));
+
+            var result = await _controller.StripeWebhook();
+
+            var status = Assert.IsType<ObjectResult>(result);
+            Assert.Equal(503, status.StatusCode);
         }
     }
 }

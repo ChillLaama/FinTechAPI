@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FinTechAPI.Application.DTOs;
+using FinTechAPI.Application.Exceptions;
 using FinTechAPI.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -34,8 +35,19 @@ namespace FinTechAPI.API.Controllers
                 return BadRequest(new { message = "Idempotency-Key header is required." });
             }
 
-            var result = await _paymentService.CreatePaymentIntentAsync(dto, userId, idempotencyKey.ToString());
-            return Ok(result);
+            try
+            {
+                var result = await _paymentService.CreatePaymentIntentAsync(dto, userId, idempotencyKey.ToString());
+                return Ok(result);
+            }
+            catch (PaymentConfigurationException ex)
+            {
+                return StatusCode(503, new { message = ex.Message });
+            }
+            catch (PaymentProviderException ex)
+            {
+                return StatusCode(502, new { message = ex.Message, stripeCode = ex.StripeCode });
+            }
         }
 
         [Authorize]
@@ -66,9 +78,16 @@ namespace FinTechAPI.API.Controllers
                 return BadRequest(new { message = "Stripe-Signature header is required." });
             }
 
-            var handled = await _paymentService.HandleStripeWebhookAsync(payload, signatureHeader.ToString());
-            if (!handled)
-                return BadRequest(new { message = "Invalid Stripe webhook signature." });
+            try
+            {
+                var handled = await _paymentService.HandleStripeWebhookAsync(payload, signatureHeader.ToString());
+                if (!handled)
+                    return BadRequest(new { message = "Invalid Stripe webhook signature." });
+            }
+            catch (PaymentConfigurationException ex)
+            {
+                return StatusCode(503, new { message = ex.Message });
+            }
 
             return Ok();
         }

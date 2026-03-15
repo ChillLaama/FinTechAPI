@@ -7,6 +7,7 @@ using FinTechAPI.Application.Mappings;
 using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Payments;
 using FinTechAPI.Infrastructure.Services;
+using FinTechAPI.Application.Exceptions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.OpenApi.Models;
 
@@ -55,7 +56,7 @@ public static class DependencyInjectionConfig
         // Use FirestoreDbBuilder with explicit credential — avoids ADC lookup
         services.AddSingleton(_ => new FirestoreDbBuilder
         {
-            ProjectId  = projectId,
+            ProjectId = projectId,
             Credential = credential.IsCreateScopedRequired
                 ? credential.CreateScoped("https://www.googleapis.com/auth/datastore")
                 : credential
@@ -64,12 +65,15 @@ public static class DependencyInjectionConfig
         services.Configure<FirebaseSettings>(firebaseSection);
         services.Configure<StripeSettings>(configuration.GetSection("Stripe"));
 
+        // ── Stripe ──────────────────────────────────────────────────────────
+        services.AddScoped<IStripePaymentIntentService, StripePaymentIntentService>();
+
         // ── Application services ─────────────────────────────────────────
-        services.AddScoped<IAuthService,        AuthService>();
-        services.AddScoped<IAccountService,     AccountService>();
-        services.AddScoped<IPaymentService,     PaymentService>();
-        services.AddScoped<IReportingService,   ReportingService>();
-        services.AddScoped<ISecurityService,    SecurityService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<IReportingService, ReportingService>();
+        services.AddScoped<ISecurityService, SecurityService>();
         services.AddScoped<ITransactionService, TransactionService>();
 
         // ── Authentication / Authorisation ───────────────────────────────
@@ -88,11 +92,11 @@ public static class DependencyInjectionConfig
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "FinTechAPI (Firebase)", Version = "v1" });
             c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
-                Name        = "Authorization",
-                Type        = SecuritySchemeType.ApiKey,
-                Scheme      = "Bearer",
+                Name = "Authorization",
+                Type = SecuritySchemeType.ApiKey,
+                Scheme = "Bearer",
                 BearerFormat = "JWT",
-                In          = ParameterLocation.Header,
+                In = ParameterLocation.Header,
                 Description = "Enter 'Bearer {Firebase ID token}'"
             });
             c.AddSecurityRequirement(new OpenApiSecurityRequirement

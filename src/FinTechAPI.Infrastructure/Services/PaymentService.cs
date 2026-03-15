@@ -1,5 +1,7 @@
 using FinTechAPI.Application.DTOs;
+using FinTechAPI.Application.Exceptions;
 using FinTechAPI.Application.Interfaces;
+using FinTechAPI.Application.Utilities;
 using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Firebase.Documents;
 using FinTechAPI.Infrastructure.Payments;
@@ -13,24 +15,44 @@ namespace FinTechAPI.Infrastructure.Services
     {
         private readonly FirestoreProvider _firestore;
         private readonly StripeSettings _settings;
+        private readonly IStripePaymentIntentService _stripeService;
 
-        public PaymentService(FirestoreProvider firestore, IOptions<StripeSettings> settings)
+        // Defines the forward-moving lifecycle order. Terminal statuses share the
+        // highest rank so they can replace any non-terminal state but not each other.
+        private static readonly IReadOnlyDictionary<string, int> StatusRank =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["requires_payment_method"] = 0,
+                ["requires_confirmation"] = 1,
+                ["requires_action"] = 2,
+                ["processing"] = 3,
+                ["requires_capture"] = 4,
+                ["succeeded"] = 5,
+                ["canceled"] = 5,
+            };
+
+        private static readonly IReadOnlySet<string> TerminalStatuses =
+            new HashSet<string>(["succeeded", "canceled"], StringComparer.OrdinalIgnoreCase);
+
+        public PaymentService(
+            FirestoreProvider firestore,
+            IOptions<StripeSettings> settings,
+            IStripePaymentIntentService stripeService)
         {
             _firestore = firestore;
             _settings = settings.Value;
+            _stripeService = stripeService;
         }
 
-        public async Task<PaymentIntentResponseDto> CreatePaymentIntentAsync(CreatePaymentIntentDto dto, string userId, string idempotencyKey)
+        public async Task<PaymentIntentResponseDto> CreatePaymentIntentAsync(
+            CreatePaymentIntentDto dto, string userId, string idempotencyKey)
         {
-            EnsureApiKeyConfigured();
-            StripeConfiguration.ApiKey = _settings.ApiKey;
-
-            var amountInCents = Convert.ToInt64(decimal.Round(dto.Amount * 100m, 0, MidpointRounding.AwayFromZero));
+            var amountMinorUnits = AmountConverter.ToMinorUnits(dto.Amount);
             var normalizedCurrency = dto.Currency.Trim().ToLowerInvariant();
 
             var createOptions = new PaymentIntentCreateOptions
             {
-                Amount = amountInCents,
+                Amount = amountMinorUnits,
                 Currency = normalizedCurrency,
                 Description = dto.Description,
                 Metadata = new Dictionary<string, string>
@@ -40,13 +62,20 @@ namespace FinTechAPI.Infrastructure.Services
                 }
             };
 
-            var requestOptions = new RequestOptions
-            {
-                IdempotencyKey = idempotencyKey
-            };
+            var requestOptions = new RequestOptions { IdempotencyKey = idempotencyKey };
 
-            var stripeService = new Stripe.PaymentIntentService();
-            var intent = await stripeService.CreateAsync(createOptions, requestOptions);
+            PaymentIntent intent;
+            try
+            {
+                intent = await _stripeService.CreateAsync(createOptions, requestOptions);
+            }
+            catch (StripeException ex)
+            {
+                throw new PaymentProviderException(
+                    $"Stripe rejected the payment intent: {ex.StripeError?.Message ?? ex.Message}",
+                    ex,
+                    ex.StripeError?.Code);
+            }
 
             var now = Timestamp.GetCurrentTimestamp();
             var paymentDocRef = _firestore.Payments.Document();
@@ -54,13 +83,13 @@ namespace FinTechAPI.Infrastructure.Services
             {
                 Id = paymentDocRef.Id,
                 UserId = userId,
-                Amount = (double)dto.Amount,
+                AmountMinorUnits = amountMinorUnits,
                 Currency = normalizedCurrency,
                 Status = intent.Status,
                 StripePaymentIntentId = intent.Id,
                 TransactionId = dto.TransactionId,
                 CreatedAt = now,
-                UpdatedAt = now
+                UpdatedAt = now,
             };
 
             await paymentDocRef.SetAsync(paymentDoc);
@@ -73,7 +102,7 @@ namespace FinTechAPI.Infrastructure.Services
                 Status = intent.Status,
                 Amount = dto.Amount,
                 Currency = normalizedCurrency,
-                TransactionId = dto.TransactionId
+                TransactionId = dto.TransactionId,
             };
         }
 
@@ -84,7 +113,9 @@ namespace FinTechAPI.Infrastructure.Services
                 return null;
 
             var paymentDoc = snapshot.ConvertTo<PaymentDocument>();
-            if (paymentDoc.UserId != userId)
+
+            // Ownership check — prevents IDOR
+            if (!string.Equals(paymentDoc.UserId, userId, StringComparison.Ordinal))
                 return null;
 
             return ToDto(paymentDoc);
@@ -97,7 +128,8 @@ namespace FinTechAPI.Infrastructure.Services
             Event stripeEvent;
             try
             {
-                stripeEvent = EventUtility.ConstructEvent(payload, signatureHeader, _settings.WebhookSecret);
+                stripeEvent = EventUtility.ConstructEvent(
+                    payload, signatureHeader, _settings.WebhookSecret);
             }
             catch (StripeException)
             {
@@ -105,53 +137,66 @@ namespace FinTechAPI.Infrastructure.Services
             }
 
             if (stripeEvent.Data?.Object is not PaymentIntent intent)
-                return true;
+                return true; // Not a PaymentIntent event — acknowledge silently
 
-            var snapshot = await _firestore.Payments
+            var querySnapshot = await _firestore.Payments
                 .WhereEqualTo("stripePaymentIntentId", intent.Id)
                 .Limit(1)
                 .GetSnapshotAsync();
 
-            var paymentDocument = snapshot.Documents.FirstOrDefault();
-            if (paymentDocument == null)
+            var paymentDocument = querySnapshot.Documents.FirstOrDefault();
+            if (paymentDocument is null)
+                return true; // Unknown payment — acknowledge to stop retries
+
+            var currentStatus = paymentDocument.GetValue<string>("status");
+            var lastStripeEventId = paymentDocument.ContainsField("lastStripeEventId")
+                                      ? paymentDocument.GetValue<string>("lastStripeEventId")
+                                      : null;
+
+            // ── Idempotency: skip already-processed events ───────────────────
+            if (!string.IsNullOrEmpty(lastStripeEventId) &&
+                string.Equals(lastStripeEventId, stripeEvent.Id, StringComparison.Ordinal))
+            {
                 return true;
+            }
+
+            // ── State-machine guard: never move backward, never leave terminal ─
+            var isCurrentTerminal = TerminalStatuses.Contains(currentStatus ?? string.Empty);
+            var currentRank = StatusRank.GetValueOrDefault(currentStatus ?? string.Empty, -1);
+            var newRank = StatusRank.GetValueOrDefault(intent.Status ?? string.Empty, -1);
+
+            if (isCurrentTerminal || newRank < currentRank)
+                return true; // Reject out-of-order or post-terminal update
 
             await paymentDocument.Reference.UpdateAsync(new Dictionary<string, object>
             {
-                ["status"] = intent.Status,
-                ["lastWebhookEvent"] = stripeEvent.Type,
-                ["updatedAt"] = Timestamp.GetCurrentTimestamp()
+                ["status"] = (object)(intent.Status ?? string.Empty),
+                ["lastWebhookEvent"] = (object)(stripeEvent.Type ?? string.Empty),
+                ["lastStripeEventId"] = (object)(stripeEvent.Id ?? string.Empty),
+                ["updatedAt"] = Timestamp.GetCurrentTimestamp(),
             });
 
             return true;
         }
 
-        private void EnsureApiKeyConfigured()
-        {
-            if (string.IsNullOrWhiteSpace(_settings.ApiKey))
-                throw new InvalidOperationException("Stripe ApiKey is not configured.");
-        }
-
         private void EnsureWebhookSecretConfigured()
         {
             if (string.IsNullOrWhiteSpace(_settings.WebhookSecret))
-                throw new InvalidOperationException("Stripe WebhookSecret is not configured.");
+                throw new PaymentConfigurationException("Stripe:WebhookSecret is not configured.");
         }
 
-        private static PaymentDto ToDto(PaymentDocument document)
-        {
-            return new PaymentDto
+        private static PaymentDto ToDto(PaymentDocument document) =>
+            new()
             {
                 Id = document.Id,
                 UserId = document.UserId,
-                Amount = (decimal)document.Amount,
+                Amount = AmountConverter.FromMinorUnits(document.AmountMinorUnits),
                 Currency = document.Currency,
                 Status = document.Status,
                 StripePaymentIntentId = document.StripePaymentIntentId,
                 TransactionId = document.TransactionId,
                 CreatedAt = document.CreatedAt.ToDateTime(),
-                UpdatedAt = document.UpdatedAt.ToDateTime()
+                UpdatedAt = document.UpdatedAt.ToDateTime(),
             };
-        }
     }
 }

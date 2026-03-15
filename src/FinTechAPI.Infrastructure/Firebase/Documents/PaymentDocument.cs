@@ -11,8 +11,9 @@ namespace FinTechAPI.Infrastructure.Firebase.Documents
         [FirestoreProperty("userId")]
         public string UserId { get; set; } = string.Empty;
 
-        [FirestoreProperty("amount")]
-        public double Amount { get; set; }
+        /// <summary>Amount in minor currency units (e.g. cents). Stored as integer to avoid floating-point precision loss.</summary>
+        [FirestoreProperty("amountMinorUnits")]
+        public long AmountMinorUnits { get; set; }
 
         [FirestoreProperty("currency")]
         public string Currency { get; set; } = string.Empty;
@@ -28,6 +29,10 @@ namespace FinTechAPI.Infrastructure.Firebase.Documents
 
         [FirestoreProperty("lastWebhookEvent")]
         public string? LastWebhookEvent { get; set; }
+
+        /// <summary>Stripe Event ID of the most-recently processed webhook, used for deduplication.</summary>
+        [FirestoreProperty("lastStripeEventId")]
+        public string? LastStripeEventId { get; set; }
 
         [FirestoreProperty("createdAt")]
         public Timestamp CreatedAt { get; set; }
