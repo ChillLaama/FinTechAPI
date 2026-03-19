@@ -17,6 +17,12 @@ namespace FinTechAPI.Infrastructure.Firebase.Documents
         [FirestoreProperty("type")]
         public int Type { get; set; }
 
+        [FirestoreProperty("status")]
+        public int Status { get; set; } = 1;
+
+        [FirestoreProperty("category")]
+        public string Category { get; set; } = string.Empty;
+
         [FirestoreProperty("description")]
         public string? Description { get; set; }
 

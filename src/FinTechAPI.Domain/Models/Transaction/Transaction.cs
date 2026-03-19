@@ -6,6 +6,8 @@ namespace FinTechAPI.Domain.Models
         public decimal Amount { get; set; }
         public Currency Currency { get; set; }
         public TransactionType Type { get; set; }
+        public string Category { get; set; } = string.Empty;
+        public TransactionStatus Status { get; set; } = TransactionStatus.Succeeded;
         public string? Description { get; set; }
         public DateTime TransactionDate { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

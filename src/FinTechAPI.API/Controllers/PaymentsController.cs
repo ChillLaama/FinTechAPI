@@ -1,9 +1,12 @@
 using System.Security.Claims;
+using System.ComponentModel.DataAnnotations;
 using FinTechAPI.Application.DTOs;
 using FinTechAPI.Application.Exceptions;
 using FinTechAPI.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 
 namespace FinTechAPI.API.Controllers
 {
@@ -12,10 +15,12 @@ namespace FinTechAPI.API.Controllers
     public class PaymentsController : ControllerBase
     {
         private readonly IPaymentService _paymentService;
+        private readonly IWebHostEnvironment _environment;
 
-        public PaymentsController(IPaymentService paymentService)
+        public PaymentsController(IPaymentService paymentService, IWebHostEnvironment environment)
         {
             _paymentService = paymentService;
+            _environment = environment;
         }
 
         private string GetCurrentUserId() =>
@@ -23,21 +28,33 @@ namespace FinTechAPI.API.Controllers
 
         [Authorize]
         [HttpPost("intents")]
-        public async Task<ActionResult<PaymentIntentResponseDto>> CreatePaymentIntent([FromBody] CreatePaymentIntentDto dto)
+        public async Task<ActionResult<PaymentIntentResponseDto>> CreatePaymentIntent(
+            [FromBody] CreatePaymentIntentDto dto,
+            [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey)
         {
             var userId = GetCurrentUserId();
             if (string.IsNullOrWhiteSpace(userId))
                 return Unauthorized();
 
-            if (!Request.Headers.TryGetValue("Idempotency-Key", out var idempotencyKey) ||
-                string.IsNullOrWhiteSpace(idempotencyKey))
+            string effectiveIdempotencyKey;
+            if (string.IsNullOrWhiteSpace(idempotencyKey))
             {
-                return BadRequest(new { message = "Idempotency-Key header is required." });
+                if (!_environment.IsDevelopment())
+                    return BadRequest(new { message = "Idempotency-Key header is required." });
+
+                // Fallback for Swagger/dev only: generate key server-side.
+                effectiveIdempotencyKey = Guid.NewGuid().ToString("N");
             }
+            else
+            {
+                effectiveIdempotencyKey = idempotencyKey;
+            }
+
+            Response.Headers["X-Idempotency-Key"] = effectiveIdempotencyKey;
 
             try
             {
-                var result = await _paymentService.CreatePaymentIntentAsync(dto, userId, idempotencyKey.ToString());
+                var result = await _paymentService.CreatePaymentIntentAsync(dto, userId, effectiveIdempotencyKey);
                 return Ok(result);
             }
             catch (PaymentConfigurationException ex)
@@ -67,20 +84,20 @@ namespace FinTechAPI.API.Controllers
 
         [AllowAnonymous]
         [HttpPost("webhook")]
-        public async Task<IActionResult> StripeWebhook()
+        public async Task<IActionResult> StripeWebhook(
+            [FromHeader(Name = "Stripe-Signature")][Required] string signatureHeader)
         {
             using var reader = new StreamReader(Request.Body);
             var payload = await reader.ReadToEndAsync();
 
-            if (!Request.Headers.TryGetValue("Stripe-Signature", out var signatureHeader) ||
-                string.IsNullOrWhiteSpace(signatureHeader))
+            if (string.IsNullOrWhiteSpace(signatureHeader))
             {
                 return BadRequest(new { message = "Stripe-Signature header is required." });
             }
 
             try
             {
-                var handled = await _paymentService.HandleStripeWebhookAsync(payload, signatureHeader.ToString());
+                var handled = await _paymentService.HandleStripeWebhookAsync(payload, signatureHeader);
                 if (!handled)
                     return BadRequest(new { message = "Invalid Stripe webhook signature." });
             }

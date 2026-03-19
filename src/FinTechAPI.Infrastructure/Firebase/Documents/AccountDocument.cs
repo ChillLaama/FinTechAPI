@@ -14,6 +14,8 @@ namespace FinTechAPI.Infrastructure.Firebase.Documents
         [FirestoreProperty("accountType")]
         public int AccountType { get; set; }
 
+        // Legacy semantics: this field is no longer the platform monetary source of truth.
+        // Stripe-provided balances are authoritative in the non-custodial model.
         [FirestoreProperty("balance")]
         public double Balance { get; set; }
 

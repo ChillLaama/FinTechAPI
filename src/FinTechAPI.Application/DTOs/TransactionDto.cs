@@ -8,10 +8,12 @@ namespace FinTechAPI.Application.DTOs
         public decimal Amount { get; set; }
         public Currency Currency { get; set; }
         public TransactionType Type { get; set; }
+        public TransactionStatus Status { get; set; }
         public string Category { get; set; } = string.Empty;
         public string? Description { get; set; }
         public DateTime TransactionDate { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
         public string AccountId { get; set; } = string.Empty;
     }
 }

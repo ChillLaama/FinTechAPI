@@ -22,6 +22,8 @@ namespace FinTechAPI.Application.DTOs
         [StringLength(500)]
         public string? Description { get; set; }
 
+        public TransactionStatus Status { get; set; } = TransactionStatus.Succeeded;
+
         [Required]
         public DateTime TransactionDate { get; set; }
 

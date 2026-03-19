@@ -55,6 +55,18 @@ function typeBadge(type: number | string) {
   };
 }
 
+function statusLabel(status: number | string | undefined) {
+  if (status === undefined || status === null) {
+    return "Unknown";
+  }
+
+  if (typeof status === "string") {
+    return status;
+  }
+
+  return status === 0 ? "Pending" : status === 1 ? "Succeeded" : status === 2 ? "Failed" : "Unknown";
+}
+
 export function Transactions() {
   const [selectedTransaction, setSelectedTransaction] = useState<ApiTransaction | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -255,6 +267,11 @@ export function Transactions() {
                   <span className={`px-2 py-1 rounded-md border text-xs ${typeBadge(selectedTransaction.type).className}`}>
                     {typeBadge(selectedTransaction.type).label}
                   </span>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Payment status</p>
+                  <p className="text-sm">{statusLabel(selectedTransaction.status)}</p>
                 </div>
 
                 <div>

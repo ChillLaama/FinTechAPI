@@ -10,6 +10,7 @@
 
 # Firebase service account (secrets)
 firebase-service-account.json
+src/FinTechAPI.API/appsettings_Dev.json
 
 # Old monolith project (deprecated)
 /FinTechAPI/

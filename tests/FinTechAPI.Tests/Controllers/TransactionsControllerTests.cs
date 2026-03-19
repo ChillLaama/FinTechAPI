@@ -113,5 +113,36 @@ namespace FinTechAPI.Tests.Controllers
 
             Assert.IsType<NotFoundResult>(result);
         }
+
+        [Fact]
+        public async Task UpdateTransactionStatus_ShouldReturnOk_WhenUpdated()
+        {
+            var updated = new Transaction
+            {
+                Id = "tx-1",
+                Amount = 100,
+                Status = TransactionStatus.Failed,
+                Category = "Payment"
+            };
+            var dto = new TransactionDto
+            {
+                Id = "tx-1",
+                Amount = 100,
+                Status = TransactionStatus.Failed,
+                Category = "Payment"
+            };
+
+            _mockService
+                .Setup(s => s.UpdateTransactionStatusAsync("tx-1", TransactionStatus.Failed, UserId))
+                .ReturnsAsync(updated);
+            _mockMapper.Setup(m => m.Map<TransactionDto>(updated)).Returns(dto);
+
+            var result = await _controller.UpdateTransactionStatus(
+                "tx-1",
+                new UpdateTransactionStatusDto { Status = TransactionStatus.Failed });
+
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.Equal("tx-1", ((TransactionDto)ok.Value!).Id);
+        }
     }
 }

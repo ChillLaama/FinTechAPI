@@ -9,13 +9,14 @@ using FinTechAPI.Infrastructure.Payments;
 using FinTechAPI.Infrastructure.Services;
 using FinTechAPI.Application.Exceptions;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 
 namespace FinTechAPI.API.Configuration;
 
 public static class DependencyInjectionConfig
 {
-    public static void AddServices(this IServiceCollection services, IConfiguration configuration)
+    public static void AddServices(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.AddControllers();
         services.AddAutoMapper(typeof(AutoMapperProfile));
@@ -63,7 +64,32 @@ public static class DependencyInjectionConfig
         }.Build());
         services.AddSingleton<FirestoreProvider>();
         services.Configure<FirebaseSettings>(firebaseSection);
-        services.Configure<StripeSettings>(configuration.GetSection("Stripe"));
+
+        // In production we require environment variables.
+        // In development we allow fallback to appsettings for local convenience.
+        var stripeApiKey = Environment.GetEnvironmentVariable("Stripe__ApiKey");
+        var stripeWebhookSecret = Environment.GetEnvironmentVariable("Stripe__WebhookSecret");
+
+        if (environment.IsDevelopment())
+        {
+            stripeApiKey ??= configuration["Stripe:ApiKey"];
+            stripeWebhookSecret ??= configuration["Stripe:WebhookSecret"];
+        }
+
+        services.Configure<StripeSettings>(options =>
+        {
+            options.ApiKey = stripeApiKey ?? string.Empty;
+            options.WebhookSecret = stripeWebhookSecret ?? string.Empty;
+        });
+
+        if (!environment.IsDevelopment())
+        {
+            if (string.IsNullOrWhiteSpace(stripeApiKey))
+                throw new InvalidOperationException("Missing required environment variable: Stripe__ApiKey");
+
+            if (string.IsNullOrWhiteSpace(stripeWebhookSecret))
+                throw new InvalidOperationException("Missing required environment variable: Stripe__WebhookSecret");
+        }
 
         // ── Stripe ──────────────────────────────────────────────────────────
         services.AddScoped<IStripePaymentIntentService, StripePaymentIntentService>();

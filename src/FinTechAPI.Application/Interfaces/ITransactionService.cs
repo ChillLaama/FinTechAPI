@@ -9,6 +9,7 @@ namespace FinTechAPI.Application.Interfaces
         Task<IEnumerable<Transaction>> GetTransactionsByAccountIdAsync(string accountId, string userId);
         Task<Transaction?> CreateTransactionAsync(Transaction transaction, string userId);
         Task<Transaction?> UpdateTransactionAsync(string transactionId, Transaction transactionDetails, string userId);
+        Task<Transaction?> UpdateTransactionStatusAsync(string transactionId, TransactionStatus status, string userId);
         Task<bool> DeleteTransactionAsync(string transactionId, string userId);
         Task<bool> TransactionExistsAsync(string transactionId, string userId);
     }

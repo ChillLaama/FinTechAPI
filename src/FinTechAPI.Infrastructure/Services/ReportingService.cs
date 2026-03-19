@@ -5,6 +5,7 @@ using Google.Cloud.Firestore;
 using Transaction = FinTechAPI.Domain.Models.Transaction;
 using Currency = FinTechAPI.Domain.Models.Currency;
 using TransactionType = FinTechAPI.Domain.Models.TransactionType;
+using TransactionStatus = FinTechAPI.Domain.Models.TransactionStatus;
 
 namespace FinTechAPI.Infrastructure.Services
 {
@@ -51,6 +52,8 @@ namespace FinTechAPI.Infrastructure.Services
             Amount          = (decimal)d.Amount,
             Currency        = (Currency)d.Currency,
             Type            = (TransactionType)d.Type,
+            Status          = (TransactionStatus)d.Status,
+            Category        = d.Category,
             Description     = d.Description,
             TransactionDate = d.TransactionDate.ToDateTime(),
             AccountId       = d.AccountId,

@@ -9,12 +9,31 @@ export interface ApiTransaction {
   amount: number;
   currency: number | string;
   type: number | string;
+  status?: number | string;
+  category?: string;
   description?: string | null;
   transactionDate: string;
   createdAt: string;
   updatedAt: string;
   accountId: number;
   userId: string;
+}
+
+export interface ApiCreatePaymentIntentPayload {
+  amount: number;
+  currency: string;
+  description?: string;
+  transactionId?: string;
+}
+
+export interface ApiPaymentIntentResponse {
+  paymentId: string;
+  stripePaymentIntentId: string;
+  clientSecret: string;
+  status: string;
+  amount: number;
+  currency: string;
+  transactionId?: string | null;
 }
 
 interface ApiError {
@@ -188,12 +207,48 @@ export function createTransaction(payload: {
   amount: number;
   currency: number;
   type: number;
+  status?: number;
+  category: string;
   description: string;
   transactionDate: string;
-  accountId: number;
+  accountId: string;
 }) {
   return apiRequest<ApiTransaction>("/api/transactions", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteTransaction(transactionId: string) {
+  return apiRequest<void>(`/api/transactions/${transactionId}`, {
+    method: "DELETE",
+  });
+}
+
+export function updateTransactionStatus(transactionId: string, status: number) {
+  return apiRequest<ApiTransaction>(`/api/transactions/${transactionId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function createIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+export function createPaymentIntent(
+  payload: ApiCreatePaymentIntentPayload,
+  idempotencyKey: string,
+) {
+  return apiRequest<ApiPaymentIntentResponse>("/api/payments/intents", {
+    method: "POST",
+    headers: {
+      "Idempotency-Key": idempotencyKey,
+    },
     body: JSON.stringify(payload),
   });
 }

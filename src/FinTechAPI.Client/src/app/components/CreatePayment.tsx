@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   DollarSign,
@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import {
   createTransaction,
+  createIdempotencyKey,
+  createPaymentIntent,
+  updateTransactionStatus,
   currencyLabels,
   getAccounts,
   getCurrencyLabel,
@@ -25,6 +28,9 @@ type PaymentStep = "form" | "processing" | "result";
 interface PaymentResult {
   success: boolean;
   transaction?: ApiTransaction;
+  paymentId?: string;
+  stripePaymentIntentId?: string;
+  idempotencyKey?: string;
   message: string;
 }
 
@@ -47,6 +53,15 @@ export function CreatePayment() {
   });
 
   const [formError, setFormError] = useState<string | null>(null);
+  const currentAttemptKeyRef = useRef<string | null>(null);
+
+  function getAttemptKey(): string {
+    if (!currentAttemptKeyRef.current) {
+      currentAttemptKeyRef.current = createIdempotencyKey();
+    }
+
+    return currentAttemptKeyRef.current;
+  }
 
   useEffect(() => {
     async function loadAccounts() {
@@ -83,21 +98,53 @@ export function CreatePayment() {
 
     try {
       const amountValue = Number.parseFloat(formData.amount);
+      const idempotencyKey = getAttemptKey();
 
       const transaction = await createTransaction({
         amount: amountValue,
         currency: toCurrencyValue(formData.currency),
         type: transactionTypeValues.expense,
+        status: 0,
+        category: "Payment",
         description: `${formData.recipient}: ${formData.description}`,
         transactionDate: new Date().toISOString(),
-        accountId: selectedAccount.id,
+        accountId: String(selectedAccount.id),
       });
+
+      let paymentIntent;
+      let finalizedTransaction = transaction;
+      try {
+        paymentIntent = await createPaymentIntent(
+          {
+            amount: amountValue,
+            currency: formData.currency.toLowerCase(),
+            description: `${formData.recipient}: ${formData.description}`,
+            transactionId: String(transaction.id),
+          },
+          idempotencyKey,
+        );
+
+        finalizedTransaction = await updateTransactionStatus(String(transaction.id), 1);
+      } catch (paymentError) {
+        // Payment failed: keep the transaction for audit trail, but mark it as failed.
+        try {
+          await updateTransactionStatus(String(transaction.id), 2);
+        } catch (statusError) {
+          console.error("Failed to mark transaction as failed after payment error", statusError);
+        }
+
+        throw paymentError;
+      }
 
       setResult({
         success: true,
-        transaction,
-        message: "Payment was successfully created via FinTech API.",
+        transaction: finalizedTransaction,
+        paymentId: paymentIntent.paymentId,
+        stripePaymentIntentId: paymentIntent.stripePaymentIntentId,
+        idempotencyKey,
+        message: "Payment intent was created successfully.",
       });
+      currentAttemptKeyRef.current = null;
     } catch (requestError) {
       const message =
         requestError instanceof Error
@@ -105,6 +152,7 @@ export function CreatePayment() {
           : "Payment was not created";
       setResult({
         success: false,
+        idempotencyKey: currentAttemptKeyRef.current ?? undefined,
         message,
       });
     } finally {
@@ -113,6 +161,8 @@ export function CreatePayment() {
   };
 
   const resetForm = () => {
+    const shouldClearAttemptKey = result?.success ?? true;
+
     setFormData({
       amount: "",
       currency: "EUR",
@@ -122,6 +172,9 @@ export function CreatePayment() {
     setStep("form");
     setResult(null);
     setFormError(null);
+    if (shouldClearAttemptKey) {
+      currentAttemptKeyRef.current = null;
+    }
   };
 
   return (
@@ -314,6 +367,32 @@ export function CreatePayment() {
                       {selectedAccount?.name || result.transaction.accountId}
                     </span>
                   </div>
+                  {result.paymentId && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">
+                        Payment ID
+                      </span>
+                      <code className="text-sm font-mono">{result.paymentId}</code>
+                    </div>
+                  )}
+                  {result.stripePaymentIntentId && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">
+                        Stripe Intent
+                      </span>
+                      <code className="text-sm font-mono">{result.stripePaymentIntentId}</code>
+                    </div>
+                  )}
+                  {result.idempotencyKey && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">
+                        Idempotency key
+                      </span>
+                      <code className="text-xs font-mono break-all text-right max-w-[220px]">
+                        {result.idempotencyKey}
+                      </code>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

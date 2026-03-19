@@ -68,6 +68,8 @@ namespace FinTechAPI.API.Controllers
                 Amount          = dto.Amount,
                 Currency        = dto.Currency,
                 Type            = dto.Type,
+                Status          = dto.Status,
+                Category        = dto.Category,
                 Description     = dto.Description,
                 TransactionDate = dto.TransactionDate,
                 AccountId       = dto.AccountId
@@ -92,6 +94,8 @@ namespace FinTechAPI.API.Controllers
                 Amount          = dto.Amount,
                 Currency        = dto.Currency,
                 Type            = dto.Type,
+                Status          = dto.Status,
+                Category        = dto.Category,
                 Description     = dto.Description,
                 TransactionDate = dto.TransactionDate,
                 AccountId       = dto.AccountId
@@ -101,6 +105,18 @@ namespace FinTechAPI.API.Controllers
             if (updated == null) return NotFound();
 
             return NoContent();
+        }
+
+        [HttpPatch("{id}/status")]
+        public async Task<ActionResult<TransactionDto>> UpdateTransactionStatus(string id, [FromBody] UpdateTransactionStatusDto dto)
+        {
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var updated = await _transactionService.UpdateTransactionStatusAsync(id, dto.Status, userId);
+            if (updated == null) return NotFound();
+
+            return Ok(_mapper.Map<TransactionDto>(updated));
         }
 
         [HttpDelete("{id}")]
