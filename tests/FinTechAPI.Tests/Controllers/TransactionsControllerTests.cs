@@ -11,15 +11,15 @@ namespace FinTechAPI.Tests.Controllers
     public class TransactionsControllerTests
     {
         private readonly Mock<ITransactionService> _mockService;
-        private readonly Mock<IMapper>             _mockMapper;
-        private readonly TransactionsController    _controller;
+        private readonly Mock<IMapper> _mockMapper;
+        private readonly TransactionsController _controller;
 
         private const string UserId = "firebase-user-1";
 
         public TransactionsControllerTests()
         {
             _mockService = new Mock<ITransactionService>();
-            _mockMapper  = new Mock<IMapper>();
+            _mockMapper = new Mock<IMapper>();
 
             _controller = new TransactionsController(_mockService.Object, _mockMapper.Object);
             _controller.ControllerContext = new ControllerContext
@@ -32,7 +32,7 @@ namespace FinTechAPI.Tests.Controllers
         public async Task GetTransactions_ShouldReturnOkWithList()
         {
             var transactions = new List<Transaction> { new() { Id = "tx-1", Amount = 100 } };
-            var dtos         = new List<TransactionDto> { new() { Id = "tx-1", Amount = 100 } };
+            var dtos = new List<TransactionDto> { new() { Id = "tx-1", Amount = 100 } };
 
             _mockService.Setup(s => s.GetTransactionsAsync(UserId)).ReturnsAsync(transactions);
             _mockMapper.Setup(m => m.Map<IEnumerable<TransactionDto>>(transactions)).Returns(dtos);
@@ -70,7 +70,7 @@ namespace FinTechAPI.Tests.Controllers
         [Fact]
         public async Task CreateTransaction_ShouldReturnCreatedAtAction()
         {
-            var dto     = new CreateTransactionDto { Amount = 100, Currency = Currency.USD, Type = TransactionType.Income, AccountId = "acc-1", TransactionDate = DateTime.UtcNow, Category = "Salary" };
+            var dto = new CreateTransactionDto { Amount = 100, Currency = Currency.USD, Type = TransactionType.Income, AccountId = "acc-1", TransactionDate = DateTime.UtcNow, Category = "Salary" };
             var created = new Transaction { Id = "tx-new", Amount = 100, UserId = UserId };
             var result_dto = new TransactionDto { Id = "tx-new", Amount = 100 };
 

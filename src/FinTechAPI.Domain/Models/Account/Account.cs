@@ -5,6 +5,7 @@ namespace FinTechAPI.Domain.Models
         public string Id { get; set; } = string.Empty;          // Firestore document ID
         public string Name { get; set; } = string.Empty;
         public AccountType AccountType { get; set; }
+        // Legacy field: not authoritative for platform funds in the non-custodial model.
         public decimal Balance { get; set; }
         public Currency Currency { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

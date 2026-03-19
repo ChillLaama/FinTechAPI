@@ -7,9 +7,7 @@ using FinTechAPI.Application.Mappings;
 using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Payments;
 using FinTechAPI.Infrastructure.Services;
-using FinTechAPI.Application.Exceptions;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 
 namespace FinTechAPI.API.Configuration;
@@ -93,10 +91,12 @@ public static class DependencyInjectionConfig
 
         // ── Stripe ──────────────────────────────────────────────────────────
         services.AddScoped<IStripePaymentIntentService, StripePaymentIntentService>();
+        services.AddScoped<IStripeBalanceService, StripeBalanceService>();
 
         // ── Application services ─────────────────────────────────────────
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IPlatformBalanceService, PlatformBalanceService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IReportingService, ReportingService>();
         services.AddScoped<ISecurityService, SecurityService>();

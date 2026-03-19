@@ -226,14 +226,20 @@ export function deleteTransaction(transactionId: string) {
 }
 
 export function updateTransactionStatus(transactionId: string, status: number) {
-  return apiRequest<ApiTransaction>(`/api/transactions/${transactionId}/status`, {
-    method: "PATCH",
-    body: JSON.stringify({ status }),
-  });
+  return apiRequest<ApiTransaction>(
+    `/api/transactions/${transactionId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  );
 }
 
 export function createIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
 

@@ -124,13 +124,19 @@ export function CreatePayment() {
           idempotencyKey,
         );
 
-        finalizedTransaction = await updateTransactionStatus(String(transaction.id), 1);
+        finalizedTransaction = await updateTransactionStatus(
+          String(transaction.id),
+          1,
+        );
       } catch (paymentError) {
         // Payment failed: keep the transaction for audit trail, but mark it as failed.
         try {
           await updateTransactionStatus(String(transaction.id), 2);
         } catch (statusError) {
-          console.error("Failed to mark transaction as failed after payment error", statusError);
+          console.error(
+            "Failed to mark transaction as failed after payment error",
+            statusError,
+          );
         }
 
         throw paymentError;
@@ -372,7 +378,9 @@ export function CreatePayment() {
                       <span className="text-sm text-muted-foreground">
                         Payment ID
                       </span>
-                      <code className="text-sm font-mono">{result.paymentId}</code>
+                      <code className="text-sm font-mono">
+                        {result.paymentId}
+                      </code>
                     </div>
                   )}
                   {result.stripePaymentIntentId && (
@@ -380,7 +388,9 @@ export function CreatePayment() {
                       <span className="text-sm text-muted-foreground">
                         Stripe Intent
                       </span>
-                      <code className="text-sm font-mono">{result.stripePaymentIntentId}</code>
+                      <code className="text-sm font-mono">
+                        {result.stripePaymentIntentId}
+                      </code>
                     </div>
                   )}
                   {result.idempotencyKey && (

@@ -42,9 +42,11 @@ namespace FinTechAPI.Infrastructure.Services
 
         public async Task<Account> CreateAccountAsync(Account account, string userId)
         {
-            account.UserId    = userId;
+            account.UserId = userId;
             account.CreatedAt = DateTime.UtcNow;
             account.UpdatedAt = DateTime.UtcNow;
+            // New accounts always start with a neutral legacy balance in non-custodial mode.
+            account.Balance = 0m;
 
             var docRef = _firestore.Accounts.Document();
             account.Id = docRef.Id;
@@ -54,7 +56,7 @@ namespace FinTechAPI.Infrastructure.Services
 
         public async Task<Account?> UpdateAccountAsync(string accountId, Account accountDetails, string userId)
         {
-            var docRef   = _firestore.Accounts.Document(accountId);
+            var docRef = _firestore.Accounts.Document(accountId);
             var snapshot = await docRef.GetSnapshotAsync();
             if (!snapshot.Exists) return null;
 
@@ -63,15 +65,15 @@ namespace FinTechAPI.Infrastructure.Services
 
             await docRef.UpdateAsync(new Dictionary<string, object>
             {
-                ["name"]        = accountDetails.Name,
+                ["name"] = accountDetails.Name,
                 ["accountType"] = (int)accountDetails.AccountType,
-                ["currency"]    = (int)accountDetails.Currency,
-                ["updatedAt"]   = Timestamp.GetCurrentTimestamp()
+                ["currency"] = (int)accountDetails.Currency,
+                ["updatedAt"] = Timestamp.GetCurrentTimestamp()
             });
 
-            existing.Name        = accountDetails.Name;
+            existing.Name = accountDetails.Name;
             existing.AccountType = (int)accountDetails.AccountType;
-            existing.Currency    = (int)accountDetails.Currency;
+            existing.Currency = (int)accountDetails.Currency;
             return ToAccount(existing);
         }
 
@@ -95,26 +97,26 @@ namespace FinTechAPI.Infrastructure.Services
 
         private static Account ToAccount(AccountDocument d) => new()
         {
-            Id          = d.Id,
-            Name        = d.Name,
+            Id = d.Id,
+            Name = d.Name,
             AccountType = (AccountType)d.AccountType,
-            Balance     = (decimal)d.Balance,
-            Currency    = (Currency)d.Currency,
-            UserId      = d.UserId,
-            CreatedAt   = d.CreatedAt.ToDateTime(),
-            UpdatedAt   = d.UpdatedAt.ToDateTime()
+            Balance = (decimal)d.Balance,
+            Currency = (Currency)d.Currency,
+            UserId = d.UserId,
+            CreatedAt = d.CreatedAt.ToDateTime(),
+            UpdatedAt = d.UpdatedAt.ToDateTime()
         };
 
         private static AccountDocument ToDocument(Account a) => new()
         {
-            Id          = a.Id,
-            Name        = a.Name,
+            Id = a.Id,
+            Name = a.Name,
             AccountType = (int)a.AccountType,
-            Balance     = (double)a.Balance,
-            Currency    = (int)a.Currency,
-            UserId      = a.UserId,
-            CreatedAt   = Timestamp.FromDateTime(a.CreatedAt.ToUniversalTime()),
-            UpdatedAt   = Timestamp.FromDateTime(a.UpdatedAt.ToUniversalTime())
+            Balance = (double)a.Balance,
+            Currency = (int)a.Currency,
+            UserId = a.UserId,
+            CreatedAt = Timestamp.FromDateTime(a.CreatedAt.ToUniversalTime()),
+            UpdatedAt = Timestamp.FromDateTime(a.UpdatedAt.ToUniversalTime())
         };
     }
 }

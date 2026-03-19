@@ -64,11 +64,18 @@ function statusLabel(status: number | string | undefined) {
     return status;
   }
 
-  return status === 0 ? "Pending" : status === 1 ? "Succeeded" : status === 2 ? "Failed" : "Unknown";
+  return status === 0
+    ? "Pending"
+    : status === 1
+      ? "Succeeded"
+      : status === 2
+        ? "Failed"
+        : "Unknown";
 }
 
 export function Transactions() {
-  const [selectedTransaction, setSelectedTransaction] = useState<ApiTransaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<ApiTransaction | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [amountFilter, setAmountFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -83,11 +90,17 @@ export function Transactions() {
         setLoading(true);
         setError(null);
 
-        const [transactionsData, accountsData] = await Promise.all([getTransactions(), getAccounts()]);
+        const [transactionsData, accountsData] = await Promise.all([
+          getTransactions(),
+          getAccounts(),
+        ]);
         setTransactions(transactionsData);
         setAccounts(accountsData);
       } catch (requestError) {
-        const message = requestError instanceof Error ? requestError.message : "Failed to load transactions";
+        const message =
+          requestError instanceof Error
+            ? requestError.message
+            : "Failed to load transactions";
         setError(message);
       } finally {
         setLoading(false);
@@ -111,7 +124,9 @@ export function Transactions() {
       const amountMatches =
         amountFilter === "all" ||
         (amountFilter === "small" && transaction.amount < 1000) ||
-        (amountFilter === "medium" && transaction.amount >= 1000 && transaction.amount < 10000) ||
+        (amountFilter === "medium" &&
+          transaction.amount >= 1000 &&
+          transaction.amount < 10000) ||
         (amountFilter === "large" && transaction.amount >= 10000);
 
       const accountName = accountNameById.get(transaction.accountId) || "";
@@ -143,10 +158,14 @@ export function Transactions() {
 
   return (
     <div className="flex gap-6 h-full">
-      <div className={`flex-1 space-y-6 ${selectedTransaction ? "mr-[400px]" : ""} transition-all duration-300`}>
+      <div
+        className={`flex-1 space-y-6 ${selectedTransaction ? "mr-[400px]" : ""} transition-all duration-300`}
+      >
         <div>
           <h1 className="text-3xl mb-2">Transactions</h1>
-          <p className="text-muted-foreground">Full operation history from FinTech API</p>
+          <p className="text-muted-foreground">
+            Full operation history from FinTech API
+          </p>
         </div>
 
         <div className="bg-card p-4 rounded-xl border border-border">
@@ -195,11 +214,21 @@ export function Transactions() {
             <table className="w-full">
               <thead className="bg-secondary/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">Date / Time</th>
-                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">Account</th>
-                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                    ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                    Date / Time
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                    Account
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                    Type
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -214,20 +243,36 @@ export function Transactions() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           {badge.icon}
-                          <span className="text-sm font-mono">#{transaction.id}</span>
+                          <span className="text-sm font-mono">
+                            #{transaction.id}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">{formatDateTime(transaction.transactionDate)}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {formatDateTime(transaction.transactionDate)}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm">{accountNameById.get(transaction.accountId) || `Account ${transaction.accountId}`}</span>
+                        <span className="text-sm">
+                          {accountNameById.get(transaction.accountId) ||
+                            `Account ${transaction.accountId}`}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm">{formatMoney(transaction.amount, getCurrencyLabel(transaction.currency))}</span>
+                        <span className="text-sm">
+                          {formatMoney(
+                            transaction.amount,
+                            getCurrencyLabel(transaction.currency),
+                          )}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-md border text-xs ${badge.className}`}>{badge.label}</span>
+                        <span
+                          className={`px-2 py-1 rounded-md border text-xs ${badge.className}`}
+                        >
+                          {badge.label}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -236,7 +281,11 @@ export function Transactions() {
             </table>
           </div>
 
-          {filteredTransactions.length === 0 && <div className="p-12 text-center text-muted-foreground">No transactions found</div>}
+          {filteredTransactions.length === 0 && (
+            <div className="p-12 text-center text-muted-foreground">
+              No transactions found
+            </div>
+          )}
         </div>
       </div>
 
@@ -244,7 +293,10 @@ export function Transactions() {
         <div className="fixed right-0 top-16 bottom-0 w-[400px] bg-card border-l border-border overflow-y-auto shadow-xl">
           <div className="sticky top-0 bg-card border-b border-border p-4 flex items-center justify-between z-10">
             <h3>Transaction details</h3>
-            <button onClick={() => setSelectedTransaction(null)} className="p-2 rounded-lg hover:bg-secondary transition-colors">
+            <button
+              onClick={() => setSelectedTransaction(null)}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -253,35 +305,58 @@ export function Transactions() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 {typeBadge(selectedTransaction.type).icon}
-                <span className="font-mono text-sm">#{selectedTransaction.id}</span>
+                <span className="font-mono text-sm">
+                  #{selectedTransaction.id}
+                </span>
               </div>
 
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Amount</p>
-                  <p className="text-2xl">{formatMoney(selectedTransaction.amount, getCurrencyLabel(selectedTransaction.currency))}</p>
+                  <p className="text-2xl">
+                    {formatMoney(
+                      selectedTransaction.amount,
+                      getCurrencyLabel(selectedTransaction.currency),
+                    )}
+                  </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Operation type</p>
-                  <span className={`px-2 py-1 rounded-md border text-xs ${typeBadge(selectedTransaction.type).className}`}>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Operation type
+                  </p>
+                  <span
+                    className={`px-2 py-1 rounded-md border text-xs ${typeBadge(selectedTransaction.type).className}`}
+                  >
                     {typeBadge(selectedTransaction.type).label}
                   </span>
                 </div>
 
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Payment status</p>
-                  <p className="text-sm">{statusLabel(selectedTransaction.status)}</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Payment status
+                  </p>
+                  <p className="text-sm">
+                    {statusLabel(selectedTransaction.status)}
+                  </p>
                 </div>
 
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Account</p>
-                  <p>{accountNameById.get(selectedTransaction.accountId) || `Account ${selectedTransaction.accountId}`}</p>
+                  <p>
+                    {accountNameById.get(selectedTransaction.accountId) ||
+                      `Account ${selectedTransaction.accountId}`}
+                  </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Description</p>
-                  <p className="text-sm">{selectedTransaction.description || "No description provided"}</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Description
+                  </p>
+                  <p className="text-sm">
+                    {selectedTransaction.description ||
+                      "No description provided"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -294,8 +369,12 @@ export function Transactions() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
-                  <span className="text-muted-foreground">Transaction date</span>
-                  <span>{formatDateTime(selectedTransaction.transactionDate)}</span>
+                  <span className="text-muted-foreground">
+                    Transaction date
+                  </span>
+                  <span>
+                    {formatDateTime(selectedTransaction.transactionDate)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
                   <span className="text-muted-foreground">Created</span>
@@ -319,7 +398,9 @@ export function Transactions() {
               </div>
               <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
                 <span className="text-muted-foreground">User ID</span>
-                <code className="truncate max-w-[180px]">{selectedTransaction.userId}</code>
+                <code className="truncate max-w-[180px]">
+                  {selectedTransaction.userId}
+                </code>
               </div>
               <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
                 <span className="text-muted-foreground">Transaction ID</span>
@@ -332,7 +413,9 @@ export function Transactions() {
                 <FileText className="w-5 h-5 text-accent" />
                 <h4>API status</h4>
               </div>
-              <p className="text-sm text-muted-foreground">Data is loaded from endpoint `GET /api/transactions`.</p>
+              <p className="text-sm text-muted-foreground">
+                Data is loaded from endpoint `GET /api/transactions`.
+              </p>
             </div>
           </div>
         </div>

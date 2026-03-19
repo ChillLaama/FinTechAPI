@@ -32,7 +32,7 @@ namespace FinTechAPI.Infrastructure.Services
         public async Task<IEnumerable<Transaction>> GetTransactionsByDateRangeAsync(DateTime startDate, DateTime endDate)
         {
             var start = Timestamp.FromDateTime(startDate.ToUniversalTime());
-            var end   = Timestamp.FromDateTime(endDate.ToUniversalTime());
+            var end = Timestamp.FromDateTime(endDate.ToUniversalTime());
 
             var snapshot = await _firestore.Transactions
                 .WhereGreaterThanOrEqualTo("transactionDate", start)
@@ -48,18 +48,18 @@ namespace FinTechAPI.Infrastructure.Services
 
         private static Transaction ToTransaction(TransactionDocument d) => new()
         {
-            Id              = d.Id,
-            Amount          = (decimal)d.Amount,
-            Currency        = (Currency)d.Currency,
-            Type            = (TransactionType)d.Type,
-            Status          = (TransactionStatus)d.Status,
-            Category        = d.Category,
-            Description     = d.Description,
+            Id = d.Id,
+            Amount = (decimal)d.Amount,
+            Currency = (Currency)d.Currency,
+            Type = (TransactionType)d.Type,
+            Status = (TransactionStatus)d.Status,
+            Category = d.Category,
+            Description = d.Description,
             TransactionDate = d.TransactionDate.ToDateTime(),
-            AccountId       = d.AccountId,
-            UserId          = d.UserId,
-            CreatedAt       = d.CreatedAt.ToDateTime(),
-            UpdatedAt       = d.UpdatedAt.ToDateTime()
+            AccountId = d.AccountId,
+            UserId = d.UserId,
+            CreatedAt = d.CreatedAt.ToDateTime(),
+            UpdatedAt = d.UpdatedAt.ToDateTime()
         };
     }
 }

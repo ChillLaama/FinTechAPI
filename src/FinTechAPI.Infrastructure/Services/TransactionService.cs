@@ -9,6 +9,8 @@ using TransactionStatus = FinTechAPI.Domain.Models.TransactionStatus;
 
 namespace FinTechAPI.Infrastructure.Services
 {
+    // Non-custodial model: transactions track business lifecycle only.
+    // Monetary balances are sourced from Stripe, not from internal account balance mutations.
     public class TransactionService : ITransactionService
     {
         private readonly FirestoreProvider _firestore;
@@ -57,24 +59,13 @@ namespace FinTechAPI.Infrastructure.Services
             var accountDoc = accountSnap.ConvertTo<AccountDocument>();
             if (accountDoc.UserId != userId) return null;
 
-            transaction.UserId    = userId;
+            transaction.UserId = userId;
             transaction.CreatedAt = DateTime.UtcNow;
             transaction.UpdatedAt = DateTime.UtcNow;
 
             var docRef = _firestore.Transactions.Document();
             transaction.Id = docRef.Id;
             await docRef.SetAsync(ToDocument(transaction));
-
-            double delta = GetBalanceDelta(transaction.Type, transaction.Amount, transaction.Status);
-
-            if (delta != 0)
-            {
-                await _firestore.Accounts.Document(transaction.AccountId).UpdateAsync(new Dictionary<string, object>
-                {
-                    ["balance"]   = accountDoc.Balance + delta,
-                    ["updatedAt"] = Timestamp.GetCurrentTimestamp()
-                });
-            }
 
             return transaction;
         }
@@ -87,36 +78,19 @@ namespace FinTechAPI.Infrastructure.Services
             if (existing.UserId != userId) return null;
             if (existing.AccountId != transactionDetails.AccountId) return null;
 
-            var accountSnap = await _firestore.Accounts.Document(existing.AccountId).GetSnapshotAsync();
-            if (!accountSnap.Exists) return null;
-            var accountDoc = accountSnap.ConvertTo<AccountDocument>();
-
-            double revert = -GetBalanceDelta(
-                (TransactionType)existing.Type,
-                (decimal)existing.Amount,
-                (TransactionStatus)existing.Status);
-
-            double apply = GetBalanceDelta(transactionDetails.Type, transactionDetails.Amount, transactionDetails.Status);
-
             await _firestore.Transactions.Document(transactionId).UpdateAsync(new Dictionary<string, object>
             {
-                ["amount"]          = (double)transactionDetails.Amount,
-                ["type"]            = (int)transactionDetails.Type,
-                ["status"]          = (int)transactionDetails.Status,
-                ["category"]        = transactionDetails.Category,
-                ["description"]     = transactionDetails.Description ?? (object)FieldValue.Delete,
+                ["amount"] = (double)transactionDetails.Amount,
+                ["type"] = (int)transactionDetails.Type,
+                ["status"] = (int)transactionDetails.Status,
+                ["category"] = transactionDetails.Category,
+                ["description"] = transactionDetails.Description ?? FieldValue.Delete,
                 ["transactionDate"] = Timestamp.FromDateTime(transactionDetails.TransactionDate.ToUniversalTime()),
-                ["updatedAt"]       = Timestamp.GetCurrentTimestamp()
-            });
-
-            await _firestore.Accounts.Document(existing.AccountId).UpdateAsync(new Dictionary<string, object>
-            {
-                ["balance"]   = accountDoc.Balance + revert + apply,
                 ["updatedAt"] = Timestamp.GetCurrentTimestamp()
             });
 
             existing.Amount = (double)transactionDetails.Amount;
-            existing.Type   = (int)transactionDetails.Type;
+            existing.Type = (int)transactionDetails.Type;
             existing.Status = (int)transactionDetails.Status;
             existing.Category = transactionDetails.Category;
             existing.Description = transactionDetails.Description;
@@ -135,28 +109,11 @@ namespace FinTechAPI.Infrastructure.Services
             if (previousStatus == status)
                 return ToTransaction(existing);
 
-            var accountSnap = await _firestore.Accounts.Document(existing.AccountId).GetSnapshotAsync();
-            if (!accountSnap.Exists) return null;
-            var accountDoc = accountSnap.ConvertTo<AccountDocument>();
-
-            var oldDelta = GetBalanceDelta((TransactionType)existing.Type, (decimal)existing.Amount, previousStatus);
-            var newDelta = GetBalanceDelta((TransactionType)existing.Type, (decimal)existing.Amount, status);
-            var balanceAdjustment = newDelta - oldDelta;
-
             await _firestore.Transactions.Document(transactionId).UpdateAsync(new Dictionary<string, object>
             {
-                ["status"]    = (int)status,
+                ["status"] = (int)status,
                 ["updatedAt"] = Timestamp.GetCurrentTimestamp()
             });
-
-            if (Math.Abs(balanceAdjustment) > 0)
-            {
-                await _firestore.Accounts.Document(existing.AccountId).UpdateAsync(new Dictionary<string, object>
-                {
-                    ["balance"]   = accountDoc.Balance + balanceAdjustment,
-                    ["updatedAt"] = Timestamp.GetCurrentTimestamp()
-                });
-            }
 
             existing.Status = (int)status;
             return ToTransaction(existing);
@@ -168,19 +125,6 @@ namespace FinTechAPI.Infrastructure.Services
             if (!snapshot.Exists) return false;
             var doc = snapshot.ConvertTo<TransactionDocument>();
             if (doc.UserId != userId) return false;
-
-            var accountSnap = await _firestore.Accounts.Document(doc.AccountId).GetSnapshotAsync();
-            if (accountSnap.Exists)
-            {
-                var accountDoc = accountSnap.ConvertTo<AccountDocument>();
-                var revert = -GetBalanceDelta((TransactionType)doc.Type, (decimal)doc.Amount, (TransactionStatus)doc.Status);
-
-                await _firestore.Accounts.Document(doc.AccountId).UpdateAsync(new Dictionary<string, object>
-                {
-                    ["balance"]   = accountDoc.Balance + revert,
-                    ["updatedAt"] = Timestamp.GetCurrentTimestamp()
-                });
-            }
 
             await _firestore.Transactions.Document(transactionId).DeleteAsync();
             return true;
@@ -196,47 +140,34 @@ namespace FinTechAPI.Infrastructure.Services
 
         private static Transaction ToTransaction(TransactionDocument d) => new()
         {
-            Id              = d.Id,
-            Amount          = (decimal)d.Amount,
-            Currency        = (Currency)d.Currency,
-            Type            = (TransactionType)d.Type,
-            Status          = (TransactionStatus)d.Status,
-            Category        = d.Category,
-            Description     = d.Description,
+            Id = d.Id,
+            Amount = (decimal)d.Amount,
+            Currency = (Currency)d.Currency,
+            Type = (TransactionType)d.Type,
+            Status = (TransactionStatus)d.Status,
+            Category = d.Category,
+            Description = d.Description,
             TransactionDate = d.TransactionDate.ToDateTime(),
-            AccountId       = d.AccountId,
-            UserId          = d.UserId,
-            CreatedAt       = d.CreatedAt.ToDateTime(),
-            UpdatedAt       = d.UpdatedAt.ToDateTime()
+            AccountId = d.AccountId,
+            UserId = d.UserId,
+            CreatedAt = d.CreatedAt.ToDateTime(),
+            UpdatedAt = d.UpdatedAt.ToDateTime()
         };
 
         private static TransactionDocument ToDocument(Transaction t) => new()
         {
-            Id              = t.Id,
-            Amount          = (double)t.Amount,
-            Currency        = (int)t.Currency,
-            Type            = (int)t.Type,
-            Status          = (int)t.Status,
-            Category        = t.Category,
-            Description     = t.Description,
+            Id = t.Id,
+            Amount = (double)t.Amount,
+            Currency = (int)t.Currency,
+            Type = (int)t.Type,
+            Status = (int)t.Status,
+            Category = t.Category,
+            Description = t.Description,
             TransactionDate = Timestamp.FromDateTime(t.TransactionDate.ToUniversalTime()),
-            AccountId       = t.AccountId,
-            UserId          = t.UserId,
-            CreatedAt       = Timestamp.FromDateTime(t.CreatedAt.ToUniversalTime()),
-            UpdatedAt       = Timestamp.FromDateTime(t.UpdatedAt.ToUniversalTime())
+            AccountId = t.AccountId,
+            UserId = t.UserId,
+            CreatedAt = Timestamp.FromDateTime(t.CreatedAt.ToUniversalTime()),
+            UpdatedAt = Timestamp.FromDateTime(t.UpdatedAt.ToUniversalTime())
         };
-
-        private static double GetBalanceDelta(TransactionType type, decimal amount, TransactionStatus status)
-        {
-            if (status != TransactionStatus.Succeeded)
-                return 0;
-
-            return type switch
-            {
-                TransactionType.Income => (double)amount,
-                TransactionType.Expense => -(double)amount,
-                _ => 0,
-            };
-        }
     }
 }

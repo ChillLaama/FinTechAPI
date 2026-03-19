@@ -14,12 +14,12 @@ namespace FinTechAPI.API.Controllers
     public class TransactionsController : ControllerBase
     {
         private readonly ITransactionService _transactionService;
-        private readonly IMapper             _mapper;
+        private readonly IMapper _mapper;
 
         public TransactionsController(ITransactionService transactionService, IMapper mapper)
         {
             _transactionService = transactionService;
-            _mapper             = mapper;
+            _mapper = mapper;
         }
 
         private string GetCurrentUserId() =>
@@ -65,14 +65,14 @@ namespace FinTechAPI.API.Controllers
 
             var transaction = new Transaction
             {
-                Amount          = dto.Amount,
-                Currency        = dto.Currency,
-                Type            = dto.Type,
-                Status          = dto.Status,
-                Category        = dto.Category,
-                Description     = dto.Description,
+                Amount = dto.Amount,
+                Currency = dto.Currency,
+                Type = dto.Type,
+                Status = dto.Status,
+                Category = dto.Category,
+                Description = dto.Description,
                 TransactionDate = dto.TransactionDate,
-                AccountId       = dto.AccountId
+                AccountId = dto.AccountId
             };
 
             var created = await _transactionService.CreateTransactionAsync(transaction, userId);
@@ -91,14 +91,14 @@ namespace FinTechAPI.API.Controllers
 
             var transactionDetails = new Transaction
             {
-                Amount          = dto.Amount,
-                Currency        = dto.Currency,
-                Type            = dto.Type,
-                Status          = dto.Status,
-                Category        = dto.Category,
-                Description     = dto.Description,
+                Amount = dto.Amount,
+                Currency = dto.Currency,
+                Type = dto.Type,
+                Status = dto.Status,
+                Category = dto.Category,
+                Description = dto.Description,
                 TransactionDate = dto.TransactionDate,
-                AccountId       = dto.AccountId
+                AccountId = dto.AccountId
             };
 
             var updated = await _transactionService.UpdateTransactionAsync(id, transactionDetails, userId);
