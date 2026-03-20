@@ -104,6 +104,52 @@ export interface RegisterPayload {
   password: string;
 }
 
+export interface ApiAuthOperationResult {
+  success: boolean;
+  message: string;
+}
+
+export interface ApiUserProfile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  location: string;
+  createdAt: string;
+  emailVerified: boolean;
+  role: string;
+}
+
+export interface ApiUpdateUserProfilePayload {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  location: string;
+}
+
+export interface ApiUserSettings {
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  smsNotifications: boolean;
+  transactionAlerts: boolean;
+  securityAlerts: boolean;
+  marketingEmails: boolean;
+  theme: string;
+  language: string;
+  publicProfile: boolean;
+  showActivity: boolean;
+  dataCollection: boolean;
+  twoFactorAuth: boolean;
+  biometric: boolean;
+  sessionTimeout: string;
+  lockedFields: string[];
+}
+
+export interface ApiUpdateUserSettingsPolicyPayload {
+  lockedFields: string[];
+}
+
 export const currencyLabels: Record<number, string> = {
   0: "USD",
   1: "EUR",
@@ -228,6 +274,65 @@ export async function login(email: string, password: string) {
 export function register(payload: RegisterPayload) {
   return apiRequest("/api/auth/register", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function requestPasswordReset(email: string) {
+  return apiRequest<ApiAuthOperationResult>("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function resetPassword(oobCode: string, newPassword: string) {
+  return apiRequest<ApiAuthOperationResult>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ oobCode, newPassword }),
+  });
+}
+
+export function sendVerificationEmail() {
+  return apiRequest<ApiAuthOperationResult>("/api/auth/send-verification-email", {
+    method: "POST",
+  });
+}
+
+export function verifyEmail(oobCode: string) {
+  return apiRequest<ApiAuthOperationResult>("/api/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ oobCode }),
+  });
+}
+
+export function getMyProfile() {
+  return apiRequest<ApiUserProfile>("/api/users/me/profile");
+}
+
+export function updateMyProfile(payload: ApiUpdateUserProfilePayload) {
+  return apiRequest<ApiUserProfile>("/api/users/me/profile", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getMySettings() {
+  return apiRequest<ApiUserSettings>("/api/users/me/settings");
+}
+
+export function updateMySettings(payload: ApiUserSettings) {
+  return apiRequest<ApiUserSettings>("/api/users/me/settings", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateUserSettingsPolicy(
+  uid: string,
+  payload: ApiUpdateUserSettingsPolicyPayload,
+) {
+  return apiRequest<ApiUserSettings>(`/api/users/${uid}/settings-policy`, {
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
 }

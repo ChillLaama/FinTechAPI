@@ -17,8 +17,17 @@ namespace FinTechAPI.Infrastructure.Firebase.Documents
         [FirestoreProperty("lastName")]
         public string LastName { get; set; } = string.Empty;
 
+        [FirestoreProperty("phone")]
+        public string Phone { get; set; } = string.Empty;
+
+        [FirestoreProperty("location")]
+        public string Location { get; set; } = string.Empty;
+
         [FirestoreProperty("createdAt")]
         public Timestamp CreatedAt { get; set; }
+
+        [FirestoreProperty("updatedAt")]
+        public Timestamp UpdatedAt { get; set; }
 
         [FirestoreProperty("isActive")]
         public bool IsActive { get; set; } = true;

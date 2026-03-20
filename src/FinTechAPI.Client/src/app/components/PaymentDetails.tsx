@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
-import { ArrowLeft, CalendarClock, CreditCard, FileText, Shield } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarClock,
+  CreditCard,
+  FileText,
+  Shield,
+} from "lucide-react";
 import { getPaymentById, reconcilePayment } from "../api/client";
 import type { ApiPayment } from "../api/client";
 
@@ -72,7 +78,9 @@ export function PaymentDetails() {
   }, [payment]);
 
   if (loading) {
-    return <div className="text-muted-foreground">Loading payment details...</div>;
+    return (
+      <div className="text-muted-foreground">Loading payment details...</div>
+    );
   }
 
   if (error) {
@@ -115,7 +123,9 @@ export function PaymentDetails() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl mb-2">Payment details</h1>
-          <p className="text-muted-foreground">Provider lifecycle and reconciliation data</p>
+          <p className="text-muted-foreground">
+            Provider lifecycle and reconciliation data
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -143,27 +153,46 @@ export function PaymentDetails() {
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground">Amount</p>
-            <p className="text-xl">{formatMoney(payment.amount, payment.currency)}</p>
+            <p className="text-xl">
+              {formatMoney(payment.amount, payment.currency)}
+            </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="p-3 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Provider status</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Provider status
+            </p>
             <p>{payment.status}</p>
           </div>
           <div className="p-3 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Reconciliation state</p>
-            <p>{payment.lastWebhookEvent ? "Webhook received" : "Awaiting webhook"}</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Reconciliation state
+            </p>
+            <p>
+              {payment.lastWebhookEvent
+                ? "Webhook received"
+                : "Awaiting webhook"}
+            </p>
           </div>
           <div className="p-3 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Provider reference</p>
-            <code className="text-xs break-all">{payment.stripePaymentIntentId}</code>
+            <p className="text-xs text-muted-foreground mb-1">
+              Provider reference
+            </p>
+            <code className="text-xs break-all">
+              {payment.stripePaymentIntentId}
+            </code>
           </div>
           <div className="p-3 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Linked transaction</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Linked transaction
+            </p>
             {payment.transactionId ? (
-              <Link to="/transactions" className="text-accent hover:text-accent/80">
+              <Link
+                to="/transactions"
+                className="text-accent hover:text-accent/80"
+              >
                 {payment.transactionId}
               </Link>
             ) : (
@@ -194,7 +223,9 @@ export function PaymentDetails() {
           </div>
           <div className="p-3 bg-secondary/30 rounded-lg flex justify-between text-sm">
             <span className="text-muted-foreground">Correlation ID</span>
-            <code className="text-xs break-all">{payment.lastStripeEventId || "-"}</code>
+            <code className="text-xs break-all">
+              {payment.lastStripeEventId || "-"}
+            </code>
           </div>
         </div>
       </div>
@@ -206,7 +237,9 @@ export function PaymentDetails() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="p-3 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Provider health</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Provider health
+            </p>
             <p>{providerHealth}</p>
           </div>
           <div className="p-3 bg-secondary/30 rounded-lg">
@@ -222,7 +255,8 @@ export function PaymentDetails() {
           <h2>Error and retry context</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          If provider status is not terminal, monitor webhook updates and verify correlation ID linkage.
+          If provider status is not terminal, monitor webhook updates and verify
+          correlation ID linkage.
         </p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <FileText className="w-4 h-4" />

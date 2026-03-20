@@ -24,6 +24,7 @@
 - Internal `Account.balance` больше не является основным денежным источником истины.
 
 Fraud roadmap вынесен в отдельный файл:
+
 - [FRAUD_DEFERRED_TASKS.md](c:/Users/Daniel/RiderProjects/FinTechAPI/FRAUD_DEFERRED_TASKS.md)
 
 ---

@@ -4,6 +4,7 @@ import { ArrowLeft, Mail, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { requestPasswordReset } from "../api/client";
 
 export function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -16,15 +17,18 @@ export function ForgotPassword() {
     setError("");
     setIsLoading(true);
 
-    // Simulate email delivery
-    setTimeout(() => {
-      if (email.includes("@")) {
-        setIsSuccess(true);
-      } else {
-        setError("Enter a valid email address");
-      }
+    try {
+      await requestPasswordReset(email);
+      setIsSuccess(true);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Failed to send reset email",
+      );
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   if (isSuccess) {

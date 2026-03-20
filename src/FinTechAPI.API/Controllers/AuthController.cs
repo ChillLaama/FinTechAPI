@@ -1,5 +1,6 @@
 using FinTechAPI.Application.DTOs;
 using FinTechAPI.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinTechAPI.API.Controllers
@@ -41,6 +42,52 @@ namespace FinTechAPI.API.Controllers
             });
 
             return Ok(authResponse);
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto dto)
+        {
+            var result = await _authService.SendPasswordResetEmailAsync(dto);
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(result);
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto dto)
+        {
+            var result = await _authService.ResetPasswordAsync(dto);
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost("send-verification-email")]
+        public async Task<IActionResult> SendVerificationEmail()
+        {
+            var authHeader = Request.Headers.Authorization.ToString();
+            var token = authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                ? authHeader.Substring("Bearer ".Length)
+                : string.Empty;
+
+            var result = await _authService.SendEmailVerificationAsync(token);
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(result);
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail(VerifyEmailDto dto)
+        {
+            var result = await _authService.VerifyEmailAsync(dto);
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(result);
         }
     }
 }

@@ -77,7 +77,8 @@ export function Transactions() {
   const [selectedTransaction, setSelectedTransaction] =
     useState<ApiTransaction | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [providerStatusFilter, setProviderStatusFilter] = useState<string>("all");
+  const [providerStatusFilter, setProviderStatusFilter] =
+    useState<string>("all");
   const [fraudStatusFilter, setFraudStatusFilter] = useState<string>("all");
   const [amountFilter, setAmountFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -122,13 +123,15 @@ export function Transactions() {
     return transactions.filter((transaction) => {
       const badge = typeBadge(transaction.type);
       const typeMatches = typeFilter === "all" || badge.key === typeFilter;
-      const normalizedProviderStatus =
-        (transaction.providerStatus || "unavailable").toLowerCase();
+      const normalizedProviderStatus = (
+        transaction.providerStatus || "unavailable"
+      ).toLowerCase();
       const providerStatusMatches =
         providerStatusFilter === "all" ||
         normalizedProviderStatus === providerStatusFilter;
-      const normalizedFraudStatus =
-        (transaction.fraudDecision || "unavailable").toLowerCase();
+      const normalizedFraudStatus = (
+        transaction.fraudDecision || "unavailable"
+      ).toLowerCase();
       const fraudStatusMatches =
         fraudStatusFilter === "all" ||
         normalizedFraudStatus === fraudStatusFilter;
@@ -224,12 +227,16 @@ export function Transactions() {
               <select
                 className="px-4 py-2 bg-input-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 value={providerStatusFilter}
-                onChange={(event) => setProviderStatusFilter(event.target.value)}
+                onChange={(event) =>
+                  setProviderStatusFilter(event.target.value)
+                }
               >
                 <option value="all">Any provider status</option>
                 <option value="succeeded">Succeeded</option>
                 <option value="processing">Processing</option>
-                <option value="requires_payment_method">Requires payment method</option>
+                <option value="requires_payment_method">
+                  Requires payment method
+                </option>
                 <option value="canceled">Canceled</option>
                 <option value="unavailable">Unavailable</option>
               </select>
@@ -326,10 +333,14 @@ export function Transactions() {
                             {badge.label}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            Business: {statusLabel(selectedOrOwnBusinessStatus(transaction))}
+                            Business:{" "}
+                            {statusLabel(
+                              selectedOrOwnBusinessStatus(transaction),
+                            )}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            Provider: {transaction.providerStatus || "Unavailable"}
+                            Provider:{" "}
+                            {transaction.providerStatus || "Unavailable"}
                           </span>
                         </div>
                       </td>
@@ -465,7 +476,8 @@ export function Transactions() {
                     {statusLabel(
                       selectedTransaction.businessStatus ??
                         selectedTransaction.status,
-                    )} at {formatDateTime(selectedTransaction.updatedAt)}
+                    )}{" "}
+                    at {formatDateTime(selectedTransaction.updatedAt)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
@@ -473,18 +485,25 @@ export function Transactions() {
                     Provider status update
                   </span>
                   <span>
-                    {(selectedTransaction.providerStatus || "Unavailable")} at {selectedTransaction.providerUpdatedAt
+                    {selectedTransaction.providerStatus || "Unavailable"} at{" "}
+                    {selectedTransaction.providerUpdatedAt
                       ? formatDateTime(selectedTransaction.providerUpdatedAt)
                       : "-"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
                   <span className="text-muted-foreground">Webhook event</span>
-                  <span>{selectedTransaction.webhookEvent || "Not available"}</span>
+                  <span>
+                    {selectedTransaction.webhookEvent || "Not available"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
-                  <span className="text-muted-foreground">Transaction date</span>
-                  <span>{formatDateTime(selectedTransaction.transactionDate)}</span>
+                  <span className="text-muted-foreground">
+                    Transaction date
+                  </span>
+                  <span>
+                    {formatDateTime(selectedTransaction.transactionDate)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
                   <span className="text-muted-foreground">Created</span>
@@ -521,7 +540,9 @@ export function Transactions() {
                 <code>{selectedTransaction.paymentId || "-"}</code>
               </div>
               <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
-                <span className="text-muted-foreground">Provider reference</span>
+                <span className="text-muted-foreground">
+                  Provider reference
+                </span>
                 <code className="truncate max-w-[180px]">
                   {selectedTransaction.providerReference || "-"}
                 </code>
@@ -550,6 +571,8 @@ export function Transactions() {
   );
 }
 
-function selectedOrOwnBusinessStatus(transaction: ApiTransaction): number | string | undefined {
+function selectedOrOwnBusinessStatus(
+  transaction: ApiTransaction,
+): number | string | undefined {
   return transaction.businessStatus ?? transaction.status;
 }

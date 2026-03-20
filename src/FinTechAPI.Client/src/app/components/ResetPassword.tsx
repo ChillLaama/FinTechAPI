@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Eye, EyeOff, Lock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { resetPassword } from "../api/client";
 
 export function ResetPassword() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [oobCode, setOobCode] = useState(searchParams.get("oobCode") ?? "");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [password, setPassword] = useState("");
@@ -40,6 +43,10 @@ export function ResetPassword() {
       newErrors.push("Passwords do not match");
     }
 
+    if (!oobCode.trim()) {
+      newErrors.push("Password reset code is required");
+    }
+
     return newErrors;
   };
 
@@ -55,10 +62,17 @@ export function ResetPassword() {
     setErrors([]);
     setIsLoading(true);
 
-    // Simulate password reset
-    setTimeout(() => {
+    try {
+      await resetPassword(oobCode.trim(), password);
       navigate("/login");
-    }, 1500);
+    } catch (requestError) {
+      setErrors([
+        requestError instanceof Error
+          ? requestError.message
+          : "Failed to reset password",
+      ]);
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -90,6 +104,19 @@ export function ResetPassword() {
             </ul>
           </div>
         )}
+
+        <div className="space-y-2">
+          <Label htmlFor="resetCode">Reset code</Label>
+          <Input
+            id="resetCode"
+            type="text"
+            placeholder="Paste code from reset email link"
+            value={oobCode}
+            onChange={(e) => setOobCode(e.target.value)}
+            className="bg-input-background"
+            required
+          />
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="password">New password</Label>

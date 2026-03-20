@@ -1,14 +1,14 @@
 import { Outlet, Link, useLocation } from "react-router";
-import { 
-  LayoutDashboard, 
-  CreditCard, 
-  PlusCircle, 
+import {
+  LayoutDashboard,
+  CreditCard,
+  PlusCircle,
   FolderOpen,
   Activity,
   Settings,
   Bell,
   User,
-  LogOut
+  LogOut,
 } from "lucide-react";
 import { useState } from "react";
 import { logout } from "../api/client";
@@ -40,7 +40,7 @@ export function Layout() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
-              
+
               return (
                 <li key={item.path}>
                   <Link
@@ -81,7 +81,9 @@ export function Layout() {
         <header className="h-16 border-b border-border bg-card px-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-sm text-muted-foreground">API Status: Online</span>
+            <span className="text-sm text-muted-foreground">
+              API Status: Online
+            </span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -89,7 +91,7 @@ export function Layout() {
               <Bell className="w-5 h-5 text-muted-foreground" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
             </button>
-            
+
             <div className="relative pl-4 border-l border-border">
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -108,8 +110,12 @@ export function Layout() {
                   />
                   <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-lg shadow-lg z-20 overflow-hidden">
                     <div className="p-3 border-b border-border">
-                      <p className="text-sm text-foreground">Alexander Petrov</p>
-                      <p className="text-xs text-muted-foreground">demo@financehub.com</p>
+                      <p className="text-sm text-foreground">
+                        Alexander Petrov
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        demo@financehub.com
+                      </p>
                     </div>
                     <div className="py-1">
                       <Link

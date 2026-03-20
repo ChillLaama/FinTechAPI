@@ -36,6 +36,7 @@ Scope: non-fraud payment consistency recovery
 ## Диагностика
 
 Смотреть логи:
+
 - `Manual reconciliation applied`
 - `Transaction status synced from provider`
 - `Transaction sync skipped`

@@ -7,6 +7,7 @@
 ## 1. Backend Fraud
 
 ### FR-BE-01 FraudEvaluation storage
+
 Приоритет: P0
 Статус: Deferred
 
@@ -15,6 +16,7 @@
 - [ ] Связать evaluation с transactionId и paymentId.
 
 ### FR-BE-02 Fraud Rule Engine MVP
+
 Приоритет: P0
 Статус: Deferred
 
@@ -27,6 +29,7 @@
 - [ ] Добавить shadow-mode для риска высокого уровня.
 
 ### FR-BE-03 FraudCase lifecycle + queue backend
+
 Приоритет: P0
 Статус: Deferred
 
@@ -37,6 +40,7 @@
 - [ ] audit trail действий аналитика.
 
 ### FR-BE-04 Fraud audit and correlation
+
 Приоритет: P0
 Статус: Deferred
 
@@ -45,6 +49,7 @@
 - [ ] Вести end-to-end correlation id для fraud pipeline.
 
 ### FR-BE-05 Fraud tests
+
 Приоритет: P0
 Статус: Deferred
 
@@ -55,6 +60,7 @@
 ## 2. Frontend Fraud
 
 ### FR-FE-01 Create Payment fraud UX
+
 Приоритет: P0
 Статус: Deferred
 
@@ -64,6 +70,7 @@
 - [ ] Для block показать reason + next steps.
 
 ### FR-FE-02 Fraud Monitoring Dashboard
+
 Приоритет: P1
 Статус: Deferred
 
@@ -73,6 +80,7 @@
 - [ ] operational alerts.
 
 ### FR-FE-03 Fraud Cases Queue UI
+
 Приоритет: P0
 Статус: Deferred
 
@@ -81,6 +89,7 @@
 - [ ] Быстрые actions open/assign.
 
 ### FR-FE-04 Fraud Case Details UI
+
 Приоритет: P0
 Статус: Deferred
 
@@ -90,6 +99,7 @@
 - [ ] analyst audit trail.
 
 ### FR-FE-05 Client API fraud methods
+
 Приоритет: P0
 Статус: Deferred
 
@@ -99,6 +109,7 @@
 ## 3. Activation Conditions
 
 Вернуться к этому файлу после:
+
 - [ ] завершения non-fraud frontend scope;
 - [ ] стабилизации tests для non-fraud контуров;
 - [ ] фиксации webhook reconciliation улучшений.

@@ -62,7 +62,8 @@ export function AccountsProfiles() {
       <div>
         <h1 className="text-3xl mb-2">Account profiles</h1>
         <p className="text-muted-foreground">
-          Logical grouping and reporting profiles. Monetary balance is not stored here.
+          Logical grouping and reporting profiles. Monetary balance is not
+          stored here.
         </p>
       </div>
 
@@ -73,13 +74,18 @@ export function AccountsProfiles() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {accounts.map((account) => (
-            <div key={account.id} className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div
+              key={account.id}
+              className="bg-card border border-border rounded-xl p-5 space-y-4"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Landmark className="w-5 h-5 text-accent" />
                   <h2>{account.name}</h2>
                 </div>
-                <span className="text-xs text-muted-foreground">ID: {account.id}</span>
+                <span className="text-xs text-muted-foreground">
+                  ID: {account.id}
+                </span>
               </div>
 
               <div className="space-y-2">
@@ -94,7 +100,8 @@ export function AccountsProfiles() {
               </div>
 
               <div className="rounded-lg bg-secondary/40 p-3 text-xs text-muted-foreground">
-                This entity is informational and does not represent stored funds.
+                This entity is informational and does not represent stored
+                funds.
               </div>
             </div>
           ))}

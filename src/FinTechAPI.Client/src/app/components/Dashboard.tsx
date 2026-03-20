@@ -79,12 +79,12 @@ export function Dashboard() {
     useState<ApiPlatformBalance | null>(null);
   const [platformSummary, setPlatformSummary] =
     useState<ApiPlatformSummary | null>(null);
-  const [platformBalanceError, setPlatformBalanceError] = useState<string | null>(
-    null,
-  );
-  const [platformSummaryError, setPlatformSummaryError] = useState<string | null>(
-    null,
-  );
+  const [platformBalanceError, setPlatformBalanceError] = useState<
+    string | null
+  >(null);
+  const [platformSummaryError, setPlatformSummaryError] = useState<
+    string | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [latencySamples, setLatencySamples] = useState<number[]>([]);
@@ -97,7 +97,13 @@ export function Dashboard() {
         setPlatformBalanceError(null);
         setPlatformSummaryError(null);
 
-        const [accountsData, transactionsData, latency, platformBalanceData, platformSummaryData] = await Promise.all([
+        const [
+          accountsData,
+          transactionsData,
+          latency,
+          platformBalanceData,
+          platformSummaryData,
+        ] = await Promise.all([
           getAccounts(),
           getTransactions(),
           measureApiLatency(),
@@ -289,9 +295,7 @@ export function Dashboard() {
       <div className="bg-gradient-to-br from-primary to-accent p-8 rounded-xl shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-primary-foreground/80 mb-2">
-              Platform balance
-            </p>
+            <p className="text-primary-foreground/80 mb-2">Platform balance</p>
             <h2 className="text-5xl text-primary-foreground">
               {platformTotal === null
                 ? "Unavailable"
@@ -306,14 +310,22 @@ export function Dashboard() {
             </div>
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-primary-foreground/90">
               <span>
-                Available: {platformTotal === null
+                Available:{" "}
+                {platformTotal === null
                   ? "-"
-                  : formatMoney(platformBalance?.available ?? 0, platformCurrency)}
+                  : formatMoney(
+                      platformBalance?.available ?? 0,
+                      platformCurrency,
+                    )}
               </span>
               <span>
-                Pending: {platformTotal === null
+                Pending:{" "}
+                {platformTotal === null
                   ? "-"
-                  : formatMoney(platformBalance?.pending ?? 0, platformCurrency)}
+                  : formatMoney(
+                      platformBalance?.pending ?? 0,
+                      platformCurrency,
+                    )}
               </span>
               <span>Last synced: {lastSyncedLabel}</span>
             </div>
@@ -332,14 +344,19 @@ export function Dashboard() {
                   <p className="text-xs text-primary-foreground/80">
                     Data source
                   </p>
-                  <p className="text-sm text-primary-foreground">Platform balance service</p>
+                  <p className="text-sm text-primary-foreground">
+                    Platform balance service
+                  </p>
                 </div>
               </div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm px-4 py-3 rounded-lg">
-              <p className="text-xs text-primary-foreground/80">Settlement summary</p>
+              <p className="text-xs text-primary-foreground/80">
+                Settlement summary
+              </p>
               <p className="text-sm text-primary-foreground">
-                Available and pending amounts are sourced from the platform balance endpoint.
+                Available and pending amounts are sourced from the platform
+                balance endpoint.
               </p>
             </div>
           </div>
@@ -441,9 +458,7 @@ export function Dashboard() {
               <div className="flex justify-between mb-2">
                 <span className="text-sm">Pending review</span>
                 <span className="text-accent">
-                  {platformSummary
-                    ? platformSummary.pendingReviewCount
-                    : "-"}
+                  {platformSummary ? platformSummary.pendingReviewCount : "-"}
                 </span>
               </div>
             </div>
@@ -452,9 +467,7 @@ export function Dashboard() {
               <div className="flex justify-between mb-2">
                 <span className="text-sm">Fraud blocked count</span>
                 <span className="text-destructive">
-                  {platformSummary
-                    ? platformSummary.fraudBlockedCount
-                    : "-"}
+                  {platformSummary ? platformSummary.fraudBlockedCount : "-"}
                 </span>
               </div>
             </div>

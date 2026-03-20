@@ -46,7 +46,10 @@ namespace FinTechAPI.Infrastructure.Services
                     Email = registerDto.Email,
                     FirstName = registerDto.FirstName,
                     LastName = registerDto.LastName,
+                    Phone = string.Empty,
+                    Location = string.Empty,
                     CreatedAt = Timestamp.GetCurrentTimestamp(),
+                    UpdatedAt = Timestamp.GetCurrentTimestamp(),
                     IsActive = true
                 };
                 await _firestore.Users.Document(userRecord.Uid).SetAsync(userDoc);
@@ -144,6 +147,171 @@ namespace FinTechAPI.Infrastructure.Services
             catch (Exception ex)
             {
                 return new AuthResponseDto { Success = false, ErrorMessage = ex.Message };
+            }
+        }
+
+        public async Task<AuthOperationResultDto> SendPasswordResetEmailAsync(ForgotPasswordDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Email))
+            {
+                return new AuthOperationResultDto
+                {
+                    Success = false,
+                    Message = "Email is required."
+                };
+            }
+
+            return await SendOobCodeAsync("PASSWORD_RESET", email: dto.Email.Trim());
+        }
+
+        public async Task<AuthOperationResultDto> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.OobCode))
+            {
+                return new AuthOperationResultDto
+                {
+                    Success = false,
+                    Message = "Reset code is required."
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.NewPassword))
+            {
+                return new AuthOperationResultDto
+                {
+                    Success = false,
+                    Message = "New password is required."
+                };
+            }
+
+            var client = _httpClientFactory.CreateClient();
+            var url = $"https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key={_settings.WebApiKey}";
+            var payload = JsonSerializer.Serialize(new
+            {
+                oobCode = dto.OobCode.Trim(),
+                newPassword = dto.NewPassword
+            });
+
+            var response = await client.PostAsync(
+                url,
+                new StringContent(payload, Encoding.UTF8, "application/json"));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return await BuildFirebaseErrorResultAsync(response, "Failed to reset password.");
+            }
+
+            return new AuthOperationResultDto
+            {
+                Success = true,
+                Message = "Password has been reset successfully."
+            };
+        }
+
+        public async Task<AuthOperationResultDto> SendEmailVerificationAsync(string idToken)
+        {
+            if (string.IsNullOrWhiteSpace(idToken))
+            {
+                return new AuthOperationResultDto
+                {
+                    Success = false,
+                    Message = "Authorization token is required."
+                };
+            }
+
+            return await SendOobCodeAsync("VERIFY_EMAIL", idToken: idToken.Trim());
+        }
+
+        public async Task<AuthOperationResultDto> VerifyEmailAsync(VerifyEmailDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.OobCode))
+            {
+                return new AuthOperationResultDto
+                {
+                    Success = false,
+                    Message = "Verification code is required."
+                };
+            }
+
+            var client = _httpClientFactory.CreateClient();
+            var url = $"https://identitytoolkit.googleapis.com/v1/accounts:update?key={_settings.WebApiKey}";
+            var payload = JsonSerializer.Serialize(new
+            {
+                oobCode = dto.OobCode.Trim()
+            });
+
+            var response = await client.PostAsync(
+                url,
+                new StringContent(payload, Encoding.UTF8, "application/json"));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return await BuildFirebaseErrorResultAsync(response, "Failed to verify email.");
+            }
+
+            return new AuthOperationResultDto
+            {
+                Success = true,
+                Message = "Email has been verified successfully."
+            };
+        }
+
+        private async Task<AuthOperationResultDto> SendOobCodeAsync(
+            string requestType,
+            string? email = null,
+            string? idToken = null)
+        {
+            var client = _httpClientFactory.CreateClient();
+            var url = $"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={_settings.WebApiKey}";
+            var payload = JsonSerializer.Serialize(new
+            {
+                requestType,
+                email,
+                idToken
+            });
+
+            var response = await client.PostAsync(
+                url,
+                new StringContent(payload, Encoding.UTF8, "application/json"));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return await BuildFirebaseErrorResultAsync(response, "Failed to send email.");
+            }
+
+            return new AuthOperationResultDto
+            {
+                Success = true,
+                Message = "Request accepted. Check your email inbox."
+            };
+        }
+
+        private static async Task<AuthOperationResultDto> BuildFirebaseErrorResultAsync(
+            HttpResponseMessage response,
+            string fallbackMessage)
+        {
+            try
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                var message = doc.RootElement
+                    .GetProperty("error")
+                    .GetProperty("message")
+                    .GetString();
+
+                return new AuthOperationResultDto
+                {
+                    Success = false,
+                    Message = string.IsNullOrWhiteSpace(message) ? fallbackMessage : message
+                };
+            }
+            catch
+            {
+                return new AuthOperationResultDto
+                {
+                    Success = false,
+                    Message = fallbackMessage
+                };
             }
         }
     }

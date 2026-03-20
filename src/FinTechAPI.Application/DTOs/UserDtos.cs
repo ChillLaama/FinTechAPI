@@ -31,4 +31,26 @@ namespace FinTechAPI.Application.DTOs
         public UserDto? User { get; set; }
         public bool Success { get; set; }
     }
+
+    public class ForgotPasswordDto
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordDto
+    {
+        public string OobCode { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class VerifyEmailDto
+    {
+        public string OobCode { get; set; } = string.Empty;
+    }
+
+    public class AuthOperationResultDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
 }

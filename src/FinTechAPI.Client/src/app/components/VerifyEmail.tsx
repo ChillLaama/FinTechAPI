@@ -1,14 +1,25 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
-import { Mail, CheckCircle2, Clock, RefreshCw } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { Mail, CheckCircle2, Clock, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
+import { sendVerificationEmail, verifyEmail } from "../api/client";
 
 export function VerifyEmail() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [oobCode, setOobCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
+
+  useEffect(() => {
+    const code = searchParams.get("oobCode");
+    if (code) {
+      setOobCode(code);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (countdown > 0 && !canResend) {
@@ -19,22 +30,46 @@ export function VerifyEmail() {
     }
   }, [countdown, canResend]);
 
-  const handleResend = () => {
-    setCountdown(60);
-    setCanResend(false);
-    // Simulate email sending
+  const handleResend = async () => {
+    setError("");
+
+    try {
+      await sendVerificationEmail();
+      setCountdown(60);
+      setCanResend(false);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Failed to resend verification email",
+      );
+    }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
+    if (!oobCode.trim()) {
+      setError("Verification code is required");
+      return;
+    }
+
     setIsVerifying(true);
-    // Simulate verification
-    setTimeout(() => {
+    setError("");
+
+    try {
+      await verifyEmail(oobCode.trim());
       setIsVerifying(false);
       setIsVerified(true);
       setTimeout(() => {
         navigate("/login");
       }, 2000);
-    }, 2000);
+    } catch (requestError) {
+      setIsVerifying(false);
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Failed to verify email",
+      );
+    }
   };
 
   if (isVerified) {
@@ -73,17 +108,20 @@ export function VerifyEmail() {
 
       {/* Verification Code Input */}
       <div className="space-y-4">
-        <div className="flex gap-2 justify-center">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <input
-              key={i}
-              type="text"
-              maxLength={1}
-              className="w-12 h-14 text-center bg-input-background border border-input rounded-lg text-xl focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-              placeholder="•"
-            />
-          ))}
-        </div>
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
+        <input
+          type="text"
+          value={oobCode}
+          onChange={(event) => setOobCode(event.target.value)}
+          className="w-full h-12 px-4 bg-input-background border border-input rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+          placeholder="Paste verification code from email link"
+        />
 
         <Button
           className="w-full"
