@@ -23,6 +23,9 @@
 - FinTechAPI = source of business truth, fraud decisions, audit, reconciliation.
 - Internal `Account.balance` больше не является основным денежным источником истины.
 
+Fraud roadmap вынесен в отдельный файл:
+- [FRAUD_DEFERRED_TASKS.md](c:/Users/Daniel/RiderProjects/FinTechAPI/FRAUD_DEFERRED_TASKS.md)
+
 ---
 
 ## 3. Backend Tasks
@@ -73,13 +76,13 @@ Definition of Done:
 ## BE-03. Перевести Account в logical/reporting сущность
 
 Приоритет: P0
-Статус: In Progress
+Статус: Completed
 
 Задачи:
 
 - [x] Перестать использовать `Account.balance` как основной денежный атрибут.
 - [x] Определить новую семантику `Account`: profile / reporting bucket / logical grouping.
-- [ ] Решить, оставляем ли поле `balance` физически как legacy на переходный период.
+- [x] Решить, оставляем ли поле `balance` физически как legacy на переходный период.
 - [x] Подготовить migration note по отказу от wallet semantics.
 
 Файлы:
@@ -90,7 +93,7 @@ Definition of Done:
 
 Definition of Done:
 
-- [ ] В модели и сервисах account больше не трактуется как внутренний кошелек.
+- [x] В модели и сервисах account больше не трактуется как внутренний кошелек.
 
 ---
 
@@ -123,31 +126,31 @@ Definition of Done:
 ## BE-05. Добавить platform summary endpoint
 
 Приоритет: P1
-Статус: Not Started
+Статус: Completed
 
 Задачи:
 
-- [ ] Добавить endpoint `GET /api/platform/summary`.
-- [ ] Вернуть aggregated метрики: processed volume, successful payments, failed payments, pending review count, fraud blocked count.
-- [ ] Согласовать, какие метрики считаются из Stripe, а какие из внутренних transactions/payments.
+- [x] Добавить endpoint `GET /api/platform/summary`.
+- [x] Вернуть aggregated метрики: processed volume, successful payments, failed payments, pending review count, fraud blocked count.
+- [x] Согласовать, какие метрики считаются из Stripe, а какие из внутренних transactions/payments.
 
 Definition of Done:
 
-- [ ] Dashboard можно строить без обращения к внутреннему account balance.
+- [x] Dashboard можно строить без обращения к внутреннему account balance.
 
 ---
 
 ## BE-06. Разделить provider status и business status
 
 Приоритет: P0
-Статус: Not Started
+Статус: Completed
 
 Задачи:
 
-- [ ] Зафиксировать отдельные статусы для internal transaction и Stripe payment.
-- [ ] Добавить централизованный mapper Stripe status -> internal transaction status.
-- [ ] Убрать неоднозначность между `Transaction.status` и `Payment.status`.
-- [ ] Убедиться, что frontend получает оба состояния явно.
+- [x] Зафиксировать отдельные статусы для internal transaction и Stripe payment.
+- [x] Добавить централизованный mapper Stripe status -> internal transaction status.
+- [x] Убрать неоднозначность между `Transaction.status` и `Payment.status`.
+- [x] Убедиться, что frontend получает оба состояния явно.
 
 Файлы:
 
@@ -157,14 +160,14 @@ Definition of Done:
 
 Definition of Done:
 
-- [ ] В API и UI provider status и business status не смешиваются.
+- [x] В API и UI provider status и business status не смешиваются.
 
 ---
 
 ## BE-07. Усилить webhook reconciliation
 
 Приоритет: P0
-Статус: In Progress
+Статус: Completed
 
 Что уже есть:
 
@@ -174,25 +177,27 @@ Definition of Done:
 
 Задачи:
 
-- [ ] Добавить явный reconciliation процесс для потерянных webhook.
-- [ ] Добавить алерты по рассинхрону `Payment.status` и `Transaction.status`.
-- [ ] Добавить endpoint/джоб для ручной повторной синхронизации.
-- [ ] Документировать recovery сценарии.
+- [x] Добавить явный reconciliation процесс для потерянных webhook.
+- [x] Добавить алерты по рассинхрону `Payment.status` и `Transaction.status`.
+- [x] Добавить endpoint/джоб для ручной повторной синхронизации.
+- [x] Документировать recovery сценарии.
 
 Файлы:
 
 - [src/FinTechAPI.Infrastructure/Services/PaymentService.cs](c:/Users/Daniel/RiderProjects/FinTechAPI/src/FinTechAPI.Infrastructure/Services/PaymentService.cs)
+- [src/FinTechAPI.API/Controllers/PaymentsController.cs](c:/Users/Daniel/RiderProjects/FinTechAPI/src/FinTechAPI.API/Controllers/PaymentsController.cs)
+- [PAYMENT_RECONCILIATION_RUNBOOK.md](c:/Users/Daniel/RiderProjects/FinTechAPI/PAYMENT_RECONCILIATION_RUNBOOK.md)
 
 Definition of Done:
 
-- [ ] Есть способ восстановить консистентность между Stripe и внутренней системой.
+- [x] Есть способ восстановить консистентность между Stripe и внутренней системой.
 
 ---
 
 ## BE-08. Реализовать FraudEvaluation storage
 
 Приоритет: P0
-Статус: Not Started
+Статус: Deferred (moved)
 
 Задачи:
 
@@ -203,13 +208,14 @@ Definition of Done:
 Definition of Done:
 
 - [ ] Каждое fraud-решение сохраняется и может быть показано в UI.
+- [ ] Выполняется по [FRAUD_DEFERRED_TASKS.md](c:/Users/Daniel/RiderProjects/FinTechAPI/FRAUD_DEFERRED_TASKS.md).
 
 ---
 
 ## BE-09. Реализовать Fraud Rule Engine MVP
 
 Приоритет: P0
-Статус: Not Started
+Статус: Deferred (moved)
 
 Задачи:
 
@@ -230,7 +236,7 @@ Definition of Done:
 ## BE-10. Реализовать FraudCase lifecycle и review queue backend
 
 Приоритет: P0
-Статус: Not Started
+Статус: Deferred (moved)
 
 Задачи:
 
@@ -268,16 +274,16 @@ Definition of Done:
 ## BE-12. Обновить тесты под новую non-custodial модель
 
 Приоритет: P0
-Статус: Not Started
+Статус: Completed (non-fraud scope)
 
 Задачи:
 
-- [ ] Тест: create transaction не меняет internal balance.
-- [ ] Тест: update transaction status не меняет internal balance.
-- [ ] Тест: delete transaction не меняет internal balance.
-- [ ] Тест: Stripe-backed balance endpoint возвращает корректный DTO.
-- [ ] Тест: webhook reconciliation обновляет state без internal wallet logic.
-- [ ] Тест: fraud decision записывается и влияет на create payment flow.
+- [x] Тест: create transaction не меняет internal balance.
+- [x] Тест: update transaction status не меняет internal balance.
+- [x] Тест: delete transaction не меняет internal balance.
+- [x] Тест: Stripe-backed balance endpoint возвращает корректный DTO.
+- [x] Тест: webhook reconciliation обновляет state без internal wallet logic.
+- [ ] Тест: fraud decision записывается и влияет на create payment flow (deferred в fraud backlog).
 
 Файлы:
 
@@ -290,14 +296,14 @@ Definition of Done:
 ## FE-01. Перевести Dashboard на Stripe-backed balance
 
 Приоритет: P0
-Статус: Not Started
+Статус: Completed
 
 Задачи:
 
-- [ ] Убрать вычисление общего баланса из суммы `account.balance`.
-- [ ] Подключить новый endpoint `GET /api/platform/balance`.
-- [ ] Переименовать UI-блоки: `Platform balance`, `Available`, `Pending`, `Settlement summary`.
-- [ ] Добавить `last synced` и fallback/error state.
+- [x] Убрать вычисление общего баланса из суммы `account.balance`.
+- [x] Подключить новый endpoint `GET /api/platform/balance`.
+- [x] Переименовать UI-блоки: `Platform balance`, `Available`, `Pending`, `Settlement summary`.
+- [x] Добавить `last synced` и fallback/error state.
 
 Файлы:
 
@@ -306,36 +312,36 @@ Definition of Done:
 
 Definition of Done:
 
-- [ ] Dashboard больше не использует внутренние balances как главный источник денег.
+- [x] Dashboard больше не использует внутренние balances как главный источник денег.
 
 ---
 
 ## FE-02. Обновить dashboard metrics под новую модель
 
 Приоритет: P1
-Статус: Not Started
+Статус: Completed
 
 Задачи:
 
-- [ ] Показать processed volume.
-- [ ] Показать successful/failed payments.
-- [ ] Показать pending review count.
-- [ ] Показать fraud blocked volume/count.
-- [ ] Добавить provider/API health summary.
+- [x] Показать processed volume.
+- [x] Показать successful/failed payments.
+- [x] Показать pending review count.
+- [x] Показать fraud blocked volume/count.
+- [x] Добавить provider/API health summary.
 
 ---
 
 ## FE-03. Разделить provider status и business status в Transactions List
 
 Приоритет: P0
-Статус: Not Started
+Статус: Completed
 
 Задачи:
 
-- [ ] Показать отдельно business transaction status.
-- [ ] Показать отдельно provider payment status.
-- [ ] Показать risk level / fraud decision.
-- [ ] Добавить фильтры по provider status и fraud status.
+- [x] Показать отдельно business transaction status.
+- [x] Показать отдельно provider payment status.
+- [x] Показать risk level / fraud decision.
+- [x] Добавить фильтры по provider status и fraud status.
 
 Файлы:
 
@@ -344,33 +350,33 @@ Definition of Done:
 
 Definition of Done:
 
-- [ ] На списке больше нет смешения внутренних и Stripe-статусов.
+- [x] На списке больше нет смешения внутренних и Stripe-статусов.
 
 ---
 
 ## FE-04. Переписать Transaction Details под новую модель
 
 Приоритет: P0
-Статус: Not Started
+Статус: Completed
 
 Задачи:
 
-- [ ] Добавить timeline бизнес-статуса.
-- [ ] Добавить timeline provider-статуса.
-- [ ] Добавить fraud score / reasons / risk level.
-- [ ] Добавить webhook events.
-- [ ] Добавить correlation id / technical details.
+- [x] Добавить timeline бизнес-статуса.
+- [x] Добавить timeline provider-статуса.
+- [x] Добавить fraud score / reasons / risk level.
+- [x] Добавить webhook events.
+- [x] Добавить correlation id / technical details.
 
 Definition of Done:
 
-- [ ] Transaction Details объясняет, что произошло в бизнес-слое, провайдере и antifraud.
+- [x] Transaction Details объясняет, что произошло в бизнес-слое, провайдере и antifraud.
 
 ---
 
 ## FE-05. Переписать Create Payment под provider-first UX
 
 Приоритет: P0
-Статус: In Progress
+Статус: Completed
 
 Что уже есть:
 
@@ -381,11 +387,10 @@ Definition of Done:
 
 Что нужно сделать:
 
-- [ ] Добавить явное отображение fraud pre-check состояния.
-- [ ] Отдельно показать `allow / review / block`.
-- [ ] При `review` показать понятный waiting state.
-- [ ] При `block` показать причину и next steps.
-- [ ] Убрать wallet-style формулировки про внутренний баланс счета.
+- [x] Убрать wallet-style формулировки про внутренний баланс счета.
+- [x] Добавить provider-first терминологию и статусные сообщения в create payment flow.
+- [x] Добавить переход к payment details после успешного создания.
+- [ ] Fraud pre-check UX вынесен в [FRAUD_DEFERRED_TASKS.md](c:/Users/Daniel/RiderProjects/FinTechAPI/FRAUD_DEFERRED_TASKS.md).
 
 Файлы:
 
@@ -393,50 +398,51 @@ Definition of Done:
 
 Definition of Done:
 
-- [ ] Пользователь видит разницу между бизнес-проверкой, fraud-проверкой и Stripe provider state.
+- [x] Пользователь видит разницу между бизнес-проверкой и provider state.
+- [ ] Fraud-state часть будет закрыта позже по fraud backlog.
 
 ---
 
 ## FE-06. Добавить Payment Details экран
 
 Приоритет: P1
-Статус: Not Started
+Статус: Completed
 
 Задачи:
 
-- [ ] Отдельный экран/route для payment lifecycle.
-- [ ] Показ `stripePaymentIntentId`, provider status, reconciliation state.
-- [ ] Показ связи с transaction.
-- [ ] Показ ошибок provider и retry context.
+- [x] Отдельный экран/route для payment lifecycle.
+- [x] Показ `stripePaymentIntentId`, provider status, reconciliation state.
+- [x] Показ связи с transaction.
+- [x] Показ ошибок provider и retry context.
 
 Definition of Done:
 
-- [ ] Есть отдельная точка просмотра Stripe-side состояния платежа.
+- [x] Есть отдельная точка просмотра provider-side состояния платежа.
 
 ---
 
 ## FE-07. Пересобрать Accounts UI под logical profiles
 
 Приоритет: P1
-Статус: Not Started
+Статус: Completed
 
 Задачи:
 
-- [ ] Убрать восприятие accounts как wallet/accounts with money.
-- [ ] Переименовать/переформулировать UI при необходимости.
-- [ ] Использовать accounts как grouping/reporting/payment profiles.
-- [ ] Убрать отображение misleading balance values.
+- [x] Убрать восприятие accounts как wallet/accounts with money.
+- [x] Переименовать/переформулировать UI при необходимости.
+- [x] Использовать accounts как grouping/reporting/payment profiles.
+- [x] Убрать отображение misleading balance values.
 
 Definition of Done:
 
-- [ ] Accounts UI не создает семантику хранения средств в FinTechAPI.
+- [x] Accounts UI не создает семантику хранения средств в FinTechAPI.
 
 ---
 
 ## FE-08. Добавить Fraud Monitoring Dashboard
 
 Приоритет: P1
-Статус: Not Started
+Статус: Deferred (moved)
 
 Задачи:
 
@@ -450,7 +456,7 @@ Definition of Done:
 ## FE-09. Добавить Fraud Cases Queue UI
 
 Приоритет: P0
-Статус: Not Started
+Статус: Deferred (moved)
 
 Задачи:
 
@@ -467,7 +473,7 @@ Definition of Done:
 ## FE-10. Добавить Fraud Case Details UI
 
 Приоритет: P0
-Статус: Not Started
+Статус: Deferred (moved)
 
 Задачи:
 
@@ -485,14 +491,14 @@ Definition of Done:
 ## FE-11. Обновить API client под новую модель данных
 
 Приоритет: P0
-Статус: Not Started
+Статус: Completed (non-fraud scope)
 
 Задачи:
 
-- [ ] Добавить метод `getPlatformBalance()`.
-- [ ] Добавить метод `getPlatformSummary()`.
-- [ ] Добавить DTO с provider status + business status + fraud fields.
-- [ ] Добавить методы для fraud cases endpoints.
+- [x] Добавить метод `getPlatformBalance()`.
+- [x] Добавить метод `getPlatformSummary()`.
+- [x] Добавить DTO с provider status + business status + provider telemetry fields.
+- [ ] Методы для fraud cases endpoints вынесены в [FRAUD_DEFERRED_TASKS.md](c:/Users/Daniel/RiderProjects/FinTechAPI/FRAUD_DEFERRED_TASKS.md).
 
 Файлы:
 
@@ -503,17 +509,17 @@ Definition of Done:
 ## FE-12. Обновить продуктовую терминологию по всему фронту
 
 Приоритет: P0
-Статус: Not Started
+Статус: Completed
 
 Задачи:
 
-- [ ] Убрать wallet semantics.
-- [ ] Убрать misleading wording про internal balance.
-- [ ] Везде разделить `platform balance`, `payment status`, `transaction status`, `fraud decision`.
+- [x] Убрать wallet semantics.
+- [x] Убрать misleading wording про internal balance.
+- [x] Везде разделить `platform balance`, `payment status`, `transaction status`, `fraud decision`.
 
 Definition of Done:
 
-- [ ] В интерфейсе нет двусмысленности, что FinTechAPI хранит деньги пользователя.
+- [x] В интерфейсе нет двусмысленности, что FinTechAPI хранит деньги пользователя.
 
 ---
 
@@ -521,34 +527,30 @@ Definition of Done:
 
 ### Шаг 1
 
-- [ ] BE-04 Stripe-backed balance endpoint
-- [ ] FE-01 Dashboard balance migration
+- [x] BE-04 Stripe-backed balance endpoint
+- [x] FE-01 Dashboard balance migration
 - [ ] FE-12 Terminology cleanup
 
 ### Шаг 2
 
-- [ ] BE-02 Remove internal balance mutation
-- [ ] BE-06 Status split and mapping
-- [ ] FE-03 Transactions status split
+- [x] BE-02 Remove internal balance mutation
+- [x] BE-06 Status split and mapping
+- [x] FE-03 Transactions status split
 
 ### Шаг 3
 
-- [ ] BE-08 FraudEvaluation storage
-- [ ] BE-09 Fraud Rule Engine MVP
-- [ ] FE-05 Create Payment fraud UX
+- [ ] Deferred to fraud backlog: [FRAUD_DEFERRED_TASKS.md](c:/Users/Daniel/RiderProjects/FinTechAPI/FRAUD_DEFERRED_TASKS.md)
 
 ### Шаг 4
 
-- [ ] BE-10 FraudCase backend
-- [ ] FE-09 Cases Queue
-- [ ] FE-10 Case Details
+- [ ] Deferred to fraud backlog: [FRAUD_DEFERRED_TASKS.md](c:/Users/Daniel/RiderProjects/FinTechAPI/FRAUD_DEFERRED_TASKS.md)
 
 ### Шаг 5
 
-- [ ] BE-07 Reconciliation hardening
-- [ ] BE-12 Tests
-- [ ] FE-04 Transaction Details
-- [ ] FE-06 Payment Details
+- [x] BE-07 Reconciliation hardening
+- [x] BE-12 Tests
+- [x] FE-04 Transaction Details
+- [x] FE-06 Payment Details
 
 ---
 

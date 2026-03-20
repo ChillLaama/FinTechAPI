@@ -14,7 +14,6 @@ namespace FinTechAPI.Tests.Controllers
     public class PaymentsControllerTests
     {
         private readonly Mock<IPaymentService> _mockService;
-        private readonly Mock<IWebHostEnvironment> _mockEnvironment;
         private readonly PaymentsController _controller;
 
         private const string UserId = "firebase-user-1";
@@ -22,9 +21,9 @@ namespace FinTechAPI.Tests.Controllers
         public PaymentsControllerTests()
         {
             _mockService = new Mock<IPaymentService>();
-            _mockEnvironment = new Mock<IWebHostEnvironment>();
-            _mockEnvironment.SetupGet(e => e.EnvironmentName).Returns(Environments.Development);
-            _controller = new PaymentsController(_mockService.Object, _mockEnvironment.Object);
+            var mockEnvironment = new Mock<IWebHostEnvironment>();
+            mockEnvironment.SetupGet(e => e.EnvironmentName).Returns(Environments.Development);
+            _controller = new PaymentsController(_mockService.Object, mockEnvironment.Object);
 
             var context = new DefaultHttpContext();
             context.User = new ClaimsPrincipal(new ClaimsIdentity(new[]
@@ -156,6 +155,44 @@ namespace FinTechAPI.Tests.Controllers
 
             var ok = Assert.IsType<OkObjectResult>(result.Result);
             Assert.Equal(dto, ok.Value);
+        }
+
+        [Fact]
+        public async Task ReconcilePayment_ShouldReturnOk_WhenFound()
+        {
+            var dto = new PaymentDto
+            {
+                Id = "pay-1",
+                UserId = UserId,
+                Amount = 25.00m,
+                Currency = "usd",
+                Status = "processing",
+                StripePaymentIntentId = "pi_abc",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
+
+            _mockService
+                .Setup(service => service.ReconcilePaymentAsync("pay-1", UserId))
+                .ReturnsAsync(dto);
+
+            var result = await _controller.ReconcilePayment("pay-1");
+
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.Equal(dto, ok.Value);
+        }
+
+        [Fact]
+        public async Task ReconcilePayment_ShouldReturn502_WhenProviderFails()
+        {
+            _mockService
+                .Setup(service => service.ReconcilePaymentAsync("pay-1", UserId))
+                .ThrowsAsync(new PaymentProviderException("Stripe reconciliation request failed.", "api_error"));
+
+            var result = await _controller.ReconcilePayment("pay-1");
+
+            var status = Assert.IsType<ObjectResult>(result.Result);
+            Assert.Equal(502, status.StatusCode);
         }
 
         // ── Exception-handling contracts ────────────────────────────────────

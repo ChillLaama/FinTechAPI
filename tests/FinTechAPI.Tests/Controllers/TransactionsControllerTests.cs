@@ -11,6 +11,7 @@ namespace FinTechAPI.Tests.Controllers
     public class TransactionsControllerTests
     {
         private readonly Mock<ITransactionService> _mockService;
+        private readonly Mock<IPaymentService> _mockPaymentService;
         private readonly Mock<IMapper> _mockMapper;
         private readonly TransactionsController _controller;
 
@@ -19,9 +20,10 @@ namespace FinTechAPI.Tests.Controllers
         public TransactionsControllerTests()
         {
             _mockService = new Mock<ITransactionService>();
+            _mockPaymentService = new Mock<IPaymentService>();
             _mockMapper = new Mock<IMapper>();
 
-            _controller = new TransactionsController(_mockService.Object, _mockMapper.Object);
+            _controller = new TransactionsController(_mockService.Object, _mockPaymentService.Object, _mockMapper.Object);
             _controller.ControllerContext = new ControllerContext
             {
                 HttpContext = ControllerTestHelpers.CreateHttpContext(UserId, "user@example.com")
@@ -36,6 +38,7 @@ namespace FinTechAPI.Tests.Controllers
 
             _mockService.Setup(s => s.GetTransactionsAsync(UserId)).ReturnsAsync(transactions);
             _mockMapper.Setup(m => m.Map<IEnumerable<TransactionDto>>(transactions)).Returns(dtos);
+            _mockPaymentService.Setup(s => s.GetPaymentsByUserIdAsync(UserId)).ReturnsAsync(Array.Empty<PaymentDto>());
 
             var result = await _controller.GetTransactions();
 
@@ -51,6 +54,7 @@ namespace FinTechAPI.Tests.Controllers
 
             _mockService.Setup(s => s.GetTransactionByIdAsync("tx-1", UserId)).ReturnsAsync(txn);
             _mockMapper.Setup(m => m.Map<TransactionDto>(txn)).Returns(dto);
+            _mockPaymentService.Setup(s => s.GetPaymentsByUserIdAsync(UserId)).ReturnsAsync(Array.Empty<PaymentDto>());
 
             var result = await _controller.GetTransaction("tx-1");
 
@@ -72,15 +76,16 @@ namespace FinTechAPI.Tests.Controllers
         {
             var dto = new CreateTransactionDto { Amount = 100, Currency = Currency.USD, Type = TransactionType.Income, AccountId = "acc-1", TransactionDate = DateTime.UtcNow, Category = "Salary" };
             var created = new Transaction { Id = "tx-new", Amount = 100, UserId = UserId };
-            var result_dto = new TransactionDto { Id = "tx-new", Amount = 100 };
+            var resultDto = new TransactionDto { Id = "tx-new", Amount = 100 };
 
             _mockService.Setup(s => s.CreateTransactionAsync(It.IsAny<Transaction>(), UserId)).ReturnsAsync(created);
-            _mockMapper.Setup(m => m.Map<TransactionDto>(created)).Returns(result_dto);
+            _mockMapper.Setup(m => m.Map<TransactionDto>(created)).Returns(resultDto);
+            _mockPaymentService.Setup(s => s.GetPaymentsByUserIdAsync(UserId)).ReturnsAsync(Array.Empty<PaymentDto>());
 
             var result = await _controller.CreateTransaction(dto);
 
-            var created_result = Assert.IsType<CreatedAtActionResult>(result.Result);
-            Assert.Equal("tx-new", created_result.RouteValues!["id"]);
+            var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+            Assert.Equal("tx-new", createdResult.RouteValues!["id"]);
         }
 
         [Fact]
@@ -136,6 +141,7 @@ namespace FinTechAPI.Tests.Controllers
                 .Setup(s => s.UpdateTransactionStatusAsync("tx-1", TransactionStatus.Failed, UserId))
                 .ReturnsAsync(updated);
             _mockMapper.Setup(m => m.Map<TransactionDto>(updated)).Returns(dto);
+            _mockPaymentService.Setup(s => s.GetPaymentsByUserIdAsync(UserId)).ReturnsAsync(Array.Empty<PaymentDto>());
 
             var result = await _controller.UpdateTransactionStatus(
                 "tx-1",
@@ -143,6 +149,48 @@ namespace FinTechAPI.Tests.Controllers
 
             var ok = Assert.IsType<OkObjectResult>(result.Result);
             Assert.Equal("tx-1", ((TransactionDto)ok.Value!).Id);
+        }
+
+        [Fact]
+        public async Task GetTransaction_ShouldPopulateProviderStatus_WhenLinkedPaymentExists()
+        {
+            var txn = new Transaction { Id = "tx-1", Amount = 50 };
+            var dto = new TransactionDto
+            {
+                Id = "tx-1",
+                Amount = 50,
+                Status = TransactionStatus.Succeeded,
+                BusinessStatus = TransactionStatus.Succeeded
+            };
+
+            _mockService.Setup(s => s.GetTransactionByIdAsync("tx-1", UserId)).ReturnsAsync(txn);
+            _mockMapper.Setup(m => m.Map<TransactionDto>(txn)).Returns(dto);
+            _mockPaymentService
+                .Setup(s => s.GetPaymentsByUserIdAsync(UserId))
+                .ReturnsAsync(new[]
+                {
+                    new PaymentDto
+                    {
+                        Id = "pay-1",
+                        TransactionId = "tx-1",
+                        Status = "succeeded",
+                        StripePaymentIntentId = "pi_123",
+                        LastWebhookEvent = "payment_intent.succeeded",
+                        LastStripeEventId = "evt_123",
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                });
+
+            var result = await _controller.GetTransaction("tx-1");
+
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            var response = Assert.IsType<TransactionDto>(ok.Value);
+            Assert.Equal(TransactionStatus.Succeeded, response.BusinessStatus);
+            Assert.Equal("succeeded", response.ProviderStatus);
+            Assert.Equal("pi_123", response.ProviderReference);
+            Assert.Equal("pay-1", response.PaymentId);
+            Assert.Equal("payment_intent.succeeded", response.WebhookEvent);
+            Assert.Equal("evt_123", response.CorrelationId);
         }
     }
 }

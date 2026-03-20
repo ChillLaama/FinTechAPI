@@ -4,9 +4,7 @@ using FinTechAPI.Application.DTOs;
 using FinTechAPI.Application.Exceptions;
 using FinTechAPI.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Hosting;
 
 namespace FinTechAPI.API.Controllers
 {
@@ -80,6 +78,32 @@ namespace FinTechAPI.API.Controllers
                 return NotFound();
 
             return Ok(payment);
+        }
+
+        [Authorize]
+        [HttpPost("{paymentId}/reconcile")]
+        public async Task<ActionResult<PaymentDto>> ReconcilePayment(string paymentId)
+        {
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
+            try
+            {
+                var payment = await _paymentService.ReconcilePaymentAsync(paymentId, userId);
+                if (payment == null)
+                    return NotFound();
+
+                return Ok(payment);
+            }
+            catch (PaymentConfigurationException ex)
+            {
+                return StatusCode(503, new { message = ex.Message });
+            }
+            catch (PaymentProviderException ex)
+            {
+                return StatusCode(502, new { message = ex.Message, stripeCode = ex.StripeCode });
+            }
         }
 
         [AllowAnonymous]

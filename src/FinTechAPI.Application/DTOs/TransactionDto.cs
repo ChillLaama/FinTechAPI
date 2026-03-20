@@ -9,6 +9,13 @@ namespace FinTechAPI.Application.DTOs
         public Currency Currency { get; set; }
         public TransactionType Type { get; set; }
         public TransactionStatus Status { get; set; }
+        public TransactionStatus BusinessStatus { get; set; }
+        public string? ProviderStatus { get; set; }
+        public string? ProviderReference { get; set; }
+        public string? PaymentId { get; set; }
+        public string? WebhookEvent { get; set; }
+        public string? CorrelationId { get; set; }
+        public DateTime? ProviderUpdatedAt { get; set; }
         public string Category { get; set; } = string.Empty;
         public string? Description { get; set; }
         public DateTime TransactionDate { get; set; }

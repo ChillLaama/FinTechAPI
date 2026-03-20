@@ -10,6 +10,15 @@ export interface ApiTransaction {
   currency: number | string;
   type: number | string;
   status?: number | string;
+  businessStatus?: number | string;
+  providerStatus?: string | null;
+  providerReference?: string | null;
+  paymentId?: string | null;
+  webhookEvent?: string | null;
+  correlationId?: string | null;
+  providerUpdatedAt?: string | null;
+  riskLevel?: string;
+  fraudDecision?: string;
   category?: string;
   description?: string | null;
   transactionDate: string;
@@ -34,6 +43,39 @@ export interface ApiPaymentIntentResponse {
   amount: number;
   currency: string;
   transactionId?: string | null;
+}
+
+export interface ApiPayment {
+  id: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  stripePaymentIntentId: string;
+  transactionId?: string | null;
+  lastWebhookEvent?: string | null;
+  lastStripeEventId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiPlatformBalance {
+  available: number;
+  pending: number;
+  currency: string;
+  source: string;
+  syncedAt: string;
+}
+
+export interface ApiPlatformSummary {
+  processedVolume: number;
+  successfulPayments: number;
+  failedPayments: number;
+  pendingReviewCount: number;
+  fraudBlockedCount: number;
+  currency: string;
+  source: string;
+  syncedAt: string;
 }
 
 interface ApiError {
@@ -257,6 +299,30 @@ export function createPaymentIntent(
     },
     body: JSON.stringify(payload),
   });
+}
+
+export function getPaymentById(paymentId: string) {
+  return apiRequest<ApiPayment>(`/api/payments/${paymentId}`);
+}
+
+export function reconcilePayment(paymentId: string) {
+  return apiRequest<ApiPayment>(`/api/payments/${paymentId}/reconcile`, {
+    method: "POST",
+  });
+}
+
+export function getPlatformBalance(currency = "usd") {
+  const queryCurrency = encodeURIComponent(currency);
+  return apiRequest<ApiPlatformBalance>(
+    `/api/platform/balance?currency=${queryCurrency}`,
+  );
+}
+
+export function getPlatformSummary(currency = "usd") {
+  const queryCurrency = encodeURIComponent(currency);
+  return apiRequest<ApiPlatformSummary>(
+    `/api/platform/summary?currency=${queryCurrency}`,
+  );
 }
 
 export async function measureApiLatency(): Promise<number> {

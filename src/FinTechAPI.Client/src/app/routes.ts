@@ -5,6 +5,8 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Dashboard } from "./components/Dashboard";
 import { Transactions } from "./components/Transactions";
 import { CreatePayment } from "./components/CreatePayment";
+import { PaymentDetails } from "./components/PaymentDetails";
+import { AccountsProfiles } from "./components/AccountsProfiles";
 import { Profile } from "./components/Profile";
 import { Settings } from "./components/Settings";
 import { Login } from "./components/Login";
@@ -24,6 +26,8 @@ export const router = createBrowserRouter([
           { index: true, Component: Dashboard },
           { path: "transactions", Component: Transactions },
           { path: "create-payment", Component: CreatePayment },
+          { path: "payments/:paymentId", Component: PaymentDetails },
+          { path: "accounts", Component: AccountsProfiles },
           { path: "profile", Component: Profile },
           { path: "settings", Component: Settings },
         ],

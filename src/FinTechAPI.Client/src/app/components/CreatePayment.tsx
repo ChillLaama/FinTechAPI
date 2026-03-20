@@ -195,7 +195,7 @@ export function CreatePayment() {
         <div>
           <h1 className="text-3xl mb-2">Create payment</h1>
           <p className="text-muted-foreground">
-            Create an expense transaction via FinTech API
+            Create a payment request and track provider reconciliation
           </p>
         </div>
       </div>
@@ -269,7 +269,7 @@ export function CreatePayment() {
             <div className="bg-secondary/30 p-4 rounded-lg flex items-start gap-3">
               <Shield className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="mb-1">Debit account</p>
+                <p className="mb-1">Operation profile</p>
                 <p className="text-muted-foreground text-xs">
                   {loadingAccounts
                     ? "Loading accounts..."
@@ -312,7 +312,7 @@ export function CreatePayment() {
             <div>
               <h2 className="text-2xl mb-2">Processing payment</h2>
               <p className="text-muted-foreground">
-                Sending transaction to API...
+                Creating transaction and provider payment intent...
               </p>
             </div>
           </div>
@@ -386,7 +386,7 @@ export function CreatePayment() {
                   {result.stripePaymentIntentId && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">
-                        Stripe Intent
+                        Provider reference
                       </span>
                       <code className="text-sm font-mono">
                         {result.stripePaymentIntentId}
@@ -409,12 +409,22 @@ export function CreatePayment() {
 
             <div className="flex gap-3 pt-4">
               {result.success && (
-                <button
-                  onClick={() => navigate("/transactions")}
-                  className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  View transactions
-                </button>
+                <>
+                  {result.paymentId && (
+                    <button
+                      onClick={() => navigate(`/payments/${result.paymentId}`)}
+                      className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      View payment details
+                    </button>
+                  )}
+                  <button
+                    onClick={() => navigate("/transactions")}
+                    className="flex-1 px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                  >
+                    View transactions
+                  </button>
+                </>
               )}
               <button
                 onClick={resetForm}

@@ -22,12 +22,19 @@ import {
 } from "recharts";
 import {
   getAccounts,
+  getPlatformBalance,
+  getPlatformSummary,
   getCurrencyLabel,
   getTransactions,
   getTransactionTypeLabel,
   measureApiLatency,
 } from "../api/client";
-import type { ApiAccount, ApiTransaction } from "../api/client";
+import type {
+  ApiAccount,
+  ApiPlatformBalance,
+  ApiPlatformSummary,
+  ApiTransaction,
+} from "../api/client";
 
 function formatMoney(amount: number, currencyCode = "EUR"): string {
   return `${currencyCode} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -68,6 +75,16 @@ export function Dashboard() {
   const [period, setPeriod] = useState<"7d" | "30d">("7d");
   const [accounts, setAccounts] = useState<ApiAccount[]>([]);
   const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
+  const [platformBalance, setPlatformBalance] =
+    useState<ApiPlatformBalance | null>(null);
+  const [platformSummary, setPlatformSummary] =
+    useState<ApiPlatformSummary | null>(null);
+  const [platformBalanceError, setPlatformBalanceError] = useState<string | null>(
+    null,
+  );
+  const [platformSummaryError, setPlatformSummaryError] = useState<string | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [latencySamples, setLatencySamples] = useState<number[]>([]);
@@ -77,15 +94,35 @@ export function Dashboard() {
       try {
         setLoading(true);
         setError(null);
+        setPlatformBalanceError(null);
+        setPlatformSummaryError(null);
 
-        const [accountsData, transactionsData, latency] = await Promise.all([
+        const [accountsData, transactionsData, latency, platformBalanceData, platformSummaryData] = await Promise.all([
           getAccounts(),
           getTransactions(),
           measureApiLatency(),
+          getPlatformBalance("usd").catch((balanceError: unknown) => {
+            const message =
+              balanceError instanceof Error
+                ? balanceError.message
+                : "Failed to load platform balance";
+            setPlatformBalanceError(message);
+            return null;
+          }),
+          getPlatformSummary("usd").catch((summaryError: unknown) => {
+            const message =
+              summaryError instanceof Error
+                ? summaryError.message
+                : "Failed to load platform summary";
+            setPlatformSummaryError(message);
+            return null;
+          }),
         ]);
 
         setAccounts(accountsData);
         setTransactions(transactionsData);
+        setPlatformBalance(platformBalanceData);
+        setPlatformSummary(platformSummaryData);
         setLatencySamples((previous) => [...previous.slice(-6), latency]);
       } catch (requestError) {
         const message =
@@ -101,10 +138,40 @@ export function Dashboard() {
     loadData();
   }, []);
 
-  const totalBalance = useMemo(
-    () => accounts.reduce((sum, account) => sum + account.balance, 0),
-    [accounts],
-  );
+  const platformTotal = useMemo(() => {
+    if (!platformBalance) {
+      return null;
+    }
+
+    return platformBalance.available + platformBalance.pending;
+  }, [platformBalance]);
+
+  const platformCurrency = useMemo(() => {
+    if (!platformBalance?.currency) {
+      return "USD";
+    }
+
+    return platformBalance.currency.toUpperCase();
+  }, [platformBalance]);
+
+  const lastSyncedLabel = useMemo(() => {
+    if (!platformBalance?.syncedAt) {
+      return "Not synced";
+    }
+
+    const syncedAt = new Date(platformBalance.syncedAt);
+    if (Number.isNaN(syncedAt.getTime())) {
+      return "Not synced";
+    }
+
+    return syncedAt.toLocaleString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }, [platformBalance]);
 
   const daysToShow = period === "7d" ? 7 : 30;
   const chartData = useMemo(() => {
@@ -151,28 +218,6 @@ export function Dashboard() {
     [transactions],
   );
 
-  const typeDistribution = useMemo(() => {
-    if (transactions.length === 0) {
-      return { income: 0, expense: 0, transfer: 0 };
-    }
-
-    const incomeCount = transactions.filter(
-      (transaction) =>
-        getTransactionTypeLabel(transaction.type).toLowerCase() === "income",
-    ).length;
-    const expenseCount = transactions.filter(
-      (transaction) =>
-        getTransactionTypeLabel(transaction.type).toLowerCase() === "expense",
-    ).length;
-    const transferCount = transactions.length - incomeCount - expenseCount;
-
-    return {
-      income: (incomeCount / transactions.length) * 100,
-      expense: (expenseCount / transactions.length) * 100,
-      transfer: (transferCount / transactions.length) * 100,
-    };
-  }, [transactions]);
-
   const latencyData = useMemo(
     () =>
       latencySamples.map((value, index) => ({
@@ -192,6 +237,18 @@ export function Dashboard() {
       latencySamples.length
     );
   }, [latencySamples]);
+
+  const apiHealthStatus = useMemo(() => {
+    if (error || platformBalanceError || platformSummaryError) {
+      return "Degraded";
+    }
+
+    if (averageLatency > 600) {
+      return "Slow";
+    }
+
+    return "Healthy";
+  }, [averageLatency, error, platformBalanceError, platformSummaryError]);
 
   if (loading) {
     return (
@@ -233,10 +290,12 @@ export function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-primary-foreground/80 mb-2">
-              Total account balance
+              Platform balance
             </p>
             <h2 className="text-5xl text-primary-foreground">
-              {formatMoney(totalBalance)}
+              {platformTotal === null
+                ? "Unavailable"
+                : formatMoney(platformTotal, platformCurrency)}
             </h2>
             <div className="flex items-center gap-2 mt-4 text-primary-foreground/90">
               <TrendingUp className="w-4 h-4" />
@@ -245,6 +304,24 @@ export function Dashboard() {
                 {transactions.length}
               </span>
             </div>
+            <div className="mt-3 flex flex-wrap gap-4 text-xs text-primary-foreground/90">
+              <span>
+                Available: {platformTotal === null
+                  ? "-"
+                  : formatMoney(platformBalance?.available ?? 0, platformCurrency)}
+              </span>
+              <span>
+                Pending: {platformTotal === null
+                  ? "-"
+                  : formatMoney(platformBalance?.pending ?? 0, platformCurrency)}
+              </span>
+              <span>Last synced: {lastSyncedLabel}</span>
+            </div>
+            {platformBalanceError && (
+              <div className="mt-3 rounded-md bg-white/15 px-3 py-2 text-xs text-primary-foreground">
+                Platform balance fallback active: {platformBalanceError}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-3">
@@ -255,9 +332,15 @@ export function Dashboard() {
                   <p className="text-xs text-primary-foreground/80">
                     Data source
                   </p>
-                  <p className="text-sm text-primary-foreground">FinTech API</p>
+                  <p className="text-sm text-primary-foreground">Platform balance service</p>
                 </div>
               </div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm px-4 py-3 rounded-lg">
+              <p className="text-xs text-primary-foreground/80">Settlement summary</p>
+              <p className="text-sm text-primary-foreground">
+                Available and pending amounts are sourced from the platform balance endpoint.
+              </p>
             </div>
           </div>
         </div>
@@ -325,53 +408,77 @@ export function Dashboard() {
 
         <div className="bg-card p-6 rounded-xl border border-border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-muted-foreground">Operation distribution</h3>
+            <h3 className="text-muted-foreground">Platform summary</h3>
             <ArrowDownCircle className="w-5 h-5 text-warning" />
           </div>
           <div className="space-y-4">
             <div>
               <div className="flex justify-between mb-2">
-                <span className="text-sm">Income</span>
+                <span className="text-sm">Processed volume</span>
                 <span className="text-success">
-                  {typeDistribution.income.toFixed(1)}%
+                  {platformSummary
+                    ? formatMoney(
+                        platformSummary.processedVolume,
+                        platformSummary.currency.toUpperCase(),
+                      )
+                    : "-"}
                 </span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-success h-2 rounded-full"
-                  style={{ width: `${typeDistribution.income}%` }}
-                />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between mb-2">
-                <span className="text-sm">Expense</span>
+                <span className="text-sm">Successful / failed payments</span>
                 <span className="text-warning">
-                  {typeDistribution.expense.toFixed(1)}%
+                  {platformSummary
+                    ? `${platformSummary.successfulPayments} / ${platformSummary.failedPayments}`
+                    : "-"}
                 </span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-warning h-2 rounded-full"
-                  style={{ width: `${typeDistribution.expense}%` }}
-                />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between mb-2">
-                <span className="text-sm">Transfer</span>
+                <span className="text-sm">Pending review</span>
                 <span className="text-accent">
-                  {typeDistribution.transfer.toFixed(1)}%
+                  {platformSummary
+                    ? platformSummary.pendingReviewCount
+                    : "-"}
                 </span>
               </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-accent h-2 rounded-full"
-                  style={{ width: `${typeDistribution.transfer}%` }}
-                />
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-2">
+                <span className="text-sm">Fraud blocked count</span>
+                <span className="text-destructive">
+                  {platformSummary
+                    ? platformSummary.fraudBlockedCount
+                    : "-"}
+                </span>
               </div>
+            </div>
+
+            <div className="pt-2 border-t border-border/60">
+              <div className="flex justify-between mb-2">
+                <span className="text-sm">API health</span>
+                <span
+                  className={`text-sm ${
+                    apiHealthStatus === "Healthy"
+                      ? "text-success"
+                      : apiHealthStatus === "Slow"
+                        ? "text-warning"
+                        : "text-destructive"
+                  }`}
+                >
+                  {apiHealthStatus}
+                </span>
+              </div>
+              {platformSummaryError && (
+                <p className="text-xs text-warning">
+                  Platform summary fallback active: {platformSummaryError}
+                </p>
+              )}
             </div>
           </div>
         </div>

@@ -21,9 +21,9 @@
 
 ## Что остается до полного завершения миграции
 
-1. Dashboard и связанные frontend экраны должны перейти на Stripe-backed endpoint (`/api/platform/balance`).
-2. В API нужно добавить platform balance/summary endpoints.
-3. Поле `Account.balance` можно удалить физически после полного перевода frontend/backend на новую модель.
+1. Dashboard и связанные frontend экраны переведены на platform endpoints.
+2. В API добавлены platform balance/summary endpoints и reconciliation endpoint.
+3. Поле `Account.balance` решено оставить физически как legacy compatibility поле до отдельного cleanup-релиза схемы.
 
 ## Правило до cleanup схемы
 

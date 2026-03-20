@@ -97,6 +97,7 @@ public static class DependencyInjectionConfig
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IPlatformBalanceService, PlatformBalanceService>();
+        services.AddScoped<IPlatformSummaryService, PlatformSummaryService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IReportingService, ReportingService>();
         services.AddScoped<ISecurityService, SecurityService>();

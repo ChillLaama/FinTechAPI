@@ -3,6 +3,7 @@ using FinTechAPI.Application.Exceptions;
 using FinTechAPI.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace FinTechAPI.API.Controllers
 {
@@ -11,11 +12,18 @@ namespace FinTechAPI.API.Controllers
     public class PlatformController : ControllerBase
     {
         private readonly IPlatformBalanceService _platformBalanceService;
+        private readonly IPlatformSummaryService _platformSummaryService;
 
-        public PlatformController(IPlatformBalanceService platformBalanceService)
+        public PlatformController(
+            IPlatformBalanceService platformBalanceService,
+            IPlatformSummaryService platformSummaryService)
         {
             _platformBalanceService = platformBalanceService;
+            _platformSummaryService = platformSummaryService;
         }
+
+        private string GetCurrentUserId() =>
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 
         [Authorize]
         [HttpGet("balance")]
@@ -36,6 +44,20 @@ namespace FinTechAPI.API.Controllers
             {
                 return StatusCode(502, new { message = ex.Message, stripeCode = ex.StripeCode });
             }
+        }
+
+        [Authorize]
+        [HttpGet("summary")]
+        public async Task<ActionResult<PlatformSummaryDto>> GetSummary(
+            [FromQuery] string currency = "usd",
+            CancellationToken cancellationToken = default)
+        {
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
+            var summary = await _platformSummaryService.GetPlatformSummaryAsync(userId, currency, cancellationToken);
+            return Ok(summary);
         }
     }
 }

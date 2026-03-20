@@ -14,11 +14,13 @@ namespace FinTechAPI.API.Controllers
     public class TransactionsController : ControllerBase
     {
         private readonly ITransactionService _transactionService;
+        private readonly IPaymentService _paymentService;
         private readonly IMapper _mapper;
 
-        public TransactionsController(ITransactionService transactionService, IMapper mapper)
+        public TransactionsController(ITransactionService transactionService, IPaymentService paymentService, IMapper mapper)
         {
             _transactionService = transactionService;
+            _paymentService = paymentService;
             _mapper = mapper;
         }
 
@@ -32,7 +34,9 @@ namespace FinTechAPI.API.Controllers
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var transactions = await _transactionService.GetTransactionsAsync(userId);
-            return Ok(_mapper.Map<IEnumerable<TransactionDto>>(transactions));
+            var result = _mapper.Map<IEnumerable<TransactionDto>>(transactions).ToList();
+            await EnrichProviderStatusesAsync(result, userId);
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
@@ -44,7 +48,9 @@ namespace FinTechAPI.API.Controllers
             var transaction = await _transactionService.GetTransactionByIdAsync(id, userId);
             if (transaction == null) return NotFound();
 
-            return Ok(_mapper.Map<TransactionDto>(transaction));
+            var dto = _mapper.Map<TransactionDto>(transaction);
+            await EnrichProviderStatusAsync(dto, userId);
+            return Ok(dto);
         }
 
         [HttpGet("account/{accountId}")]
@@ -54,7 +60,9 @@ namespace FinTechAPI.API.Controllers
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var transactions = await _transactionService.GetTransactionsByAccountIdAsync(accountId, userId);
-            return Ok(_mapper.Map<IEnumerable<TransactionDto>>(transactions));
+            var result = _mapper.Map<IEnumerable<TransactionDto>>(transactions).ToList();
+            await EnrichProviderStatusesAsync(result, userId);
+            return Ok(result);
         }
 
         [HttpPost]
@@ -80,6 +88,7 @@ namespace FinTechAPI.API.Controllers
                 return BadRequest(new { message = "Account not found or access denied." });
 
             var result = _mapper.Map<TransactionDto>(created);
+            await EnrichProviderStatusAsync(result, userId);
             return CreatedAtAction(nameof(GetTransaction), new { id = result.Id }, result);
         }
 
@@ -116,7 +125,9 @@ namespace FinTechAPI.API.Controllers
             var updated = await _transactionService.UpdateTransactionStatusAsync(id, dto.Status, userId);
             if (updated == null) return NotFound();
 
-            return Ok(_mapper.Map<TransactionDto>(updated));
+            var result = _mapper.Map<TransactionDto>(updated);
+            await EnrichProviderStatusAsync(result, userId);
+            return Ok(result);
         }
 
         [HttpDelete("{id}")]
@@ -129,6 +140,39 @@ namespace FinTechAPI.API.Controllers
             if (!success) return NotFound();
 
             return NoContent();
+        }
+
+        private async Task EnrichProviderStatusesAsync(ICollection<TransactionDto> transactions, string userId)
+        {
+            var payments = await _paymentService.GetPaymentsByUserIdAsync(userId);
+            var latestPaymentByTransactionId = payments
+                .Where(payment => !string.IsNullOrWhiteSpace(payment.TransactionId))
+                .GroupBy(payment => payment.TransactionId!, StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group
+                        .OrderByDescending(payment => payment.UpdatedAt)
+                        .FirstOrDefault(),
+                    StringComparer.Ordinal);
+
+            foreach (var transaction in transactions)
+            {
+                transaction.BusinessStatus = transaction.Status;
+
+                var latestPayment = latestPaymentByTransactionId.GetValueOrDefault(transaction.Id);
+                transaction.ProviderStatus = latestPayment?.Status;
+                transaction.ProviderReference = latestPayment?.StripePaymentIntentId;
+                transaction.PaymentId = latestPayment?.Id;
+                transaction.WebhookEvent = latestPayment?.LastWebhookEvent;
+                transaction.CorrelationId = latestPayment?.LastStripeEventId;
+                transaction.ProviderUpdatedAt = latestPayment?.UpdatedAt;
+            }
+        }
+
+        private async Task EnrichProviderStatusAsync(TransactionDto transaction, string userId)
+        {
+            var list = new List<TransactionDto> { transaction };
+            await EnrichProviderStatusesAsync(list, userId);
         }
     }
 }

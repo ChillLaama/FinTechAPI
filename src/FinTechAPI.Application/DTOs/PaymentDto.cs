@@ -9,6 +9,8 @@ namespace FinTechAPI.Application.DTOs
         public string Status { get; set; } = string.Empty;
         public string StripePaymentIntentId { get; set; } = string.Empty;
         public string? TransactionId { get; set; }
+        public string? LastWebhookEvent { get; set; }
+        public string? LastStripeEventId { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

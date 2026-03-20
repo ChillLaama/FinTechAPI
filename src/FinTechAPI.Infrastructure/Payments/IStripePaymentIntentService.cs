@@ -11,4 +11,9 @@ public interface IStripePaymentIntentService
         PaymentIntentCreateOptions options,
         RequestOptions? requestOptions = null,
         CancellationToken cancellationToken = default);
+
+    Task<PaymentIntent> GetAsync(
+        string id,
+        RequestOptions? requestOptions = null,
+        CancellationToken cancellationToken = default);
 }

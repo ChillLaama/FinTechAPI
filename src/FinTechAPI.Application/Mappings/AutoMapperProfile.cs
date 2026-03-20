@@ -9,7 +9,8 @@ namespace FinTechAPI.Application.Mappings
         public AutoMapperProfile()
         {
             CreateMap<Account, AccountDto>();
-            CreateMap<Transaction, TransactionDto>();
+            CreateMap<Transaction, TransactionDto>()
+                .ForMember(dest => dest.BusinessStatus, opt => opt.MapFrom(src => src.Status));
         }
     }
 }

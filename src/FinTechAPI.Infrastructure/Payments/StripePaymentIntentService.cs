@@ -35,4 +35,15 @@ public sealed class StripePaymentIntentService : IStripePaymentIntentService
 
         return _inner.CreateAsync(options, requestOptions, cancellationToken);
     }
+
+    public Task<PaymentIntent> GetAsync(
+        string id,
+        RequestOptions? requestOptions = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_isConfigured || _inner is null)
+            throw new PaymentConfigurationException("Stripe:ApiKey is not configured.");
+
+        return _inner.GetAsync(id, null, requestOptions, cancellationToken);
+    }
 }

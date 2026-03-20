@@ -77,6 +77,8 @@ export function Transactions() {
   const [selectedTransaction, setSelectedTransaction] =
     useState<ApiTransaction | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [providerStatusFilter, setProviderStatusFilter] = useState<string>("all");
+  const [fraudStatusFilter, setFraudStatusFilter] = useState<string>("all");
   const [amountFilter, setAmountFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
@@ -120,6 +122,16 @@ export function Transactions() {
     return transactions.filter((transaction) => {
       const badge = typeBadge(transaction.type);
       const typeMatches = typeFilter === "all" || badge.key === typeFilter;
+      const normalizedProviderStatus =
+        (transaction.providerStatus || "unavailable").toLowerCase();
+      const providerStatusMatches =
+        providerStatusFilter === "all" ||
+        normalizedProviderStatus === providerStatusFilter;
+      const normalizedFraudStatus =
+        (transaction.fraudDecision || "unavailable").toLowerCase();
+      const fraudStatusMatches =
+        fraudStatusFilter === "all" ||
+        normalizedFraudStatus === fraudStatusFilter;
 
       const amountMatches =
         amountFilter === "all" ||
@@ -137,9 +149,23 @@ export function Transactions() {
         (transaction.description || "").toLowerCase().includes(search) ||
         accountName.toLowerCase().includes(search);
 
-      return typeMatches && amountMatches && searchMatches;
+      return (
+        typeMatches &&
+        providerStatusMatches &&
+        fraudStatusMatches &&
+        amountMatches &&
+        searchMatches
+      );
     });
-  }, [transactions, typeFilter, amountFilter, searchQuery, accountNameById]);
+  }, [
+    transactions,
+    typeFilter,
+    providerStatusFilter,
+    fraudStatusFilter,
+    amountFilter,
+    searchQuery,
+    accountNameById,
+  ]);
 
   if (loading) {
     return <div className="text-muted-foreground">Loading transactions...</div>;
@@ -197,6 +223,31 @@ export function Transactions() {
 
               <select
                 className="px-4 py-2 bg-input-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={providerStatusFilter}
+                onChange={(event) => setProviderStatusFilter(event.target.value)}
+              >
+                <option value="all">Any provider status</option>
+                <option value="succeeded">Succeeded</option>
+                <option value="processing">Processing</option>
+                <option value="requires_payment_method">Requires payment method</option>
+                <option value="canceled">Canceled</option>
+                <option value="unavailable">Unavailable</option>
+              </select>
+
+              <select
+                className="px-4 py-2 bg-input-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={fraudStatusFilter}
+                onChange={(event) => setFraudStatusFilter(event.target.value)}
+              >
+                <option value="all">Any fraud status</option>
+                <option value="allow">Allow</option>
+                <option value="review">Review</option>
+                <option value="block">Block</option>
+                <option value="unavailable">Unavailable</option>
+              </select>
+
+              <select
+                className="px-4 py-2 bg-input-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 value={amountFilter}
                 onChange={(event) => setAmountFilter(event.target.value)}
               >
@@ -227,7 +278,7 @@ export function Transactions() {
                     Amount
                   </th>
                   <th className="px-6 py-3 text-left text-xs text-muted-foreground uppercase tracking-wider">
-                    Type
+                    Type / statuses
                   </th>
                 </tr>
               </thead>
@@ -268,11 +319,19 @@ export function Transactions() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`px-2 py-1 rounded-md border text-xs ${badge.className}`}
-                        >
-                          {badge.label}
-                        </span>
+                        <div className="flex flex-col gap-2">
+                          <span
+                            className={`w-fit px-2 py-1 rounded-md border text-xs ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Business: {statusLabel(selectedOrOwnBusinessStatus(transaction))}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Provider: {transaction.providerStatus || "Unavailable"}
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -334,10 +393,40 @@ export function Transactions() {
 
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">
-                    Payment status
+                    Business status
                   </p>
                   <p className="text-sm">
-                    {statusLabel(selectedTransaction.status)}
+                    {statusLabel(
+                      selectedTransaction.businessStatus ??
+                        selectedTransaction.status,
+                    )}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Provider status
+                  </p>
+                  <p className="text-sm">
+                    {selectedTransaction.providerStatus || "Unavailable"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Fraud decision
+                  </p>
+                  <p className="text-sm">
+                    {selectedTransaction.fraudDecision || "Not available"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Risk level
+                  </p>
+                  <p className="text-sm">
+                    {selectedTransaction.riskLevel || "Not available"}
                   </p>
                 </div>
 
@@ -364,17 +453,38 @@ export function Transactions() {
             <div className="border-t border-border pt-6">
               <div className="flex items-center gap-2 mb-4">
                 <CalendarClock className="w-5 h-5 text-accent" />
-                <h4>Timestamps</h4>
+                <h4>Timeline</h4>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
                   <span className="text-muted-foreground">
-                    Transaction date
+                    Business status update
                   </span>
                   <span>
-                    {formatDateTime(selectedTransaction.transactionDate)}
+                    {statusLabel(
+                      selectedTransaction.businessStatus ??
+                        selectedTransaction.status,
+                    )} at {formatDateTime(selectedTransaction.updatedAt)}
                   </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
+                  <span className="text-muted-foreground">
+                    Provider status update
+                  </span>
+                  <span>
+                    {(selectedTransaction.providerStatus || "Unavailable")} at {selectedTransaction.providerUpdatedAt
+                      ? formatDateTime(selectedTransaction.providerUpdatedAt)
+                      : "-"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
+                  <span className="text-muted-foreground">Webhook event</span>
+                  <span>{selectedTransaction.webhookEvent || "Not available"}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
+                  <span className="text-muted-foreground">Transaction date</span>
+                  <span>{formatDateTime(selectedTransaction.transactionDate)}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
                   <span className="text-muted-foreground">Created</span>
@@ -406,6 +516,22 @@ export function Transactions() {
                 <span className="text-muted-foreground">Transaction ID</span>
                 <code>{selectedTransaction.id}</code>
               </div>
+              <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
+                <span className="text-muted-foreground">Payment ID</span>
+                <code>{selectedTransaction.paymentId || "-"}</code>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
+                <span className="text-muted-foreground">Provider reference</span>
+                <code className="truncate max-w-[180px]">
+                  {selectedTransaction.providerReference || "-"}
+                </code>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg text-sm">
+                <span className="text-muted-foreground">Correlation ID</span>
+                <code className="truncate max-w-[180px]">
+                  {selectedTransaction.correlationId || "-"}
+                </code>
+              </div>
             </div>
 
             <div className="border-t border-border pt-6">
@@ -422,4 +548,8 @@ export function Transactions() {
       )}
     </div>
   );
+}
+
+function selectedOrOwnBusinessStatus(transaction: ApiTransaction): number | string | undefined {
+  return transaction.businessStatus ?? transaction.status;
 }

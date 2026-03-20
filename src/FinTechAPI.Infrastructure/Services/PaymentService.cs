@@ -17,6 +17,7 @@ namespace FinTechAPI.Infrastructure.Services
         private readonly FirestoreProvider _firestore;
         private readonly StripeSettings _settings;
         private readonly IStripePaymentIntentService _stripeService;
+        private readonly ITransactionService _transactionService;
         private readonly ILogger<PaymentService> _logger;
 
         // Defines the forward-moving lifecycle order. Terminal statuses share the
@@ -40,11 +41,13 @@ namespace FinTechAPI.Infrastructure.Services
             FirestoreProvider firestore,
             IOptions<StripeSettings> settings,
             IStripePaymentIntentService stripeService,
+            ITransactionService transactionService,
             ILogger<PaymentService> logger)
         {
             _firestore = firestore;
             _settings = settings.Value;
             _stripeService = stripeService;
+            _transactionService = transactionService;
             _logger = logger;
         }
 
@@ -168,6 +171,80 @@ namespace FinTechAPI.Infrastructure.Services
             return ToDto(paymentDoc);
         }
 
+        public async Task<IEnumerable<PaymentDto>> GetPaymentsByUserIdAsync(string userId)
+        {
+            var snapshot = await _firestore.Payments
+                .WhereEqualTo("userId", userId)
+                .GetSnapshotAsync();
+
+            return snapshot.Documents
+                .Select(doc => doc.ConvertTo<PaymentDocument>())
+                .Select(ToDto)
+                .ToList();
+        }
+
+        public async Task<PaymentDto?> ReconcilePaymentAsync(string paymentId, string userId)
+        {
+            var snapshot = await _firestore.Payments.Document(paymentId).GetSnapshotAsync();
+            if (!snapshot.Exists)
+            {
+                _logger.LogWarning("Manual reconciliation requested for missing payment. PaymentId={PaymentId}, UserId={UserId}", paymentId, userId);
+                return null;
+            }
+
+            var paymentDoc = snapshot.ConvertTo<PaymentDocument>();
+            if (!string.Equals(paymentDoc.UserId, userId, StringComparison.Ordinal))
+            {
+                _logger.LogWarning(
+                    "Manual reconciliation denied by ownership check. PaymentId={PaymentId}, RequestedUserId={RequestedUserId}, OwnerUserId={OwnerUserId}",
+                    paymentId,
+                    userId,
+                    paymentDoc.UserId);
+                return null;
+            }
+
+            PaymentIntent intent;
+            try
+            {
+                intent = await _stripeService.GetAsync(paymentDoc.StripePaymentIntentId);
+            }
+            catch (StripeException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Stripe payment intent retrieval failed during manual reconciliation. PaymentId={PaymentId}, StripePaymentIntentId={StripePaymentIntentId}, UserId={UserId}, StripeCode={StripeCode}",
+                    paymentId,
+                    paymentDoc.StripePaymentIntentId,
+                    userId,
+                    ex.StripeError?.Code);
+
+                throw new PaymentProviderException(
+                    "Stripe reconciliation request failed.",
+                    ex,
+                    ex.StripeError?.Code);
+            }
+
+            var previousStatus = paymentDoc.Status;
+            paymentDoc.Status = intent.Status ?? paymentDoc.Status;
+            paymentDoc.LastWebhookEvent = "manual_reconcile";
+            paymentDoc.LastStripeEventId = $"manual-reconcile:{DateTime.UtcNow:O}";
+            paymentDoc.UpdatedAt = Timestamp.GetCurrentTimestamp();
+
+            await _firestore.Payments.Document(paymentId).SetAsync(paymentDoc, SetOptions.Overwrite);
+
+            _logger.LogInformation(
+                "Manual reconciliation applied. PaymentId={PaymentId}, StripePaymentIntentId={StripePaymentIntentId}, PreviousStatus={PreviousStatus}, NewStatus={NewStatus}, UserId={UserId}",
+                paymentId,
+                paymentDoc.StripePaymentIntentId,
+                previousStatus,
+                paymentDoc.Status,
+                userId);
+
+            await SyncTransactionStatusAsync(paymentDoc.TransactionId, userId, paymentDoc.Status, "manual_reconcile");
+
+            return ToDto(paymentDoc);
+        }
+
         public async Task<bool> HandleStripeWebhookAsync(string payload, string signatureHeader)
         {
             EnsureWebhookSecretConfigured();
@@ -257,9 +334,9 @@ namespace FinTechAPI.Infrastructure.Services
 
             await paymentDocument.Reference.UpdateAsync(new Dictionary<string, object>
             {
-                ["status"] = (object)(intent.Status ?? string.Empty),
-                ["lastWebhookEvent"] = (object)(stripeEvent.Type ?? string.Empty),
-                ["lastStripeEventId"] = (object)(stripeEvent.Id ?? string.Empty),
+                ["status"] = intent.Status ?? string.Empty,
+                ["lastWebhookEvent"] = stripeEvent.Type ?? string.Empty,
+                ["lastStripeEventId"] = stripeEvent.Id ?? string.Empty,
                 ["updatedAt"] = Timestamp.GetCurrentTimestamp(),
             });
 
@@ -273,7 +350,61 @@ namespace FinTechAPI.Infrastructure.Services
                 stripeEvent.Type,
                 userId);
 
+            var linkedTransactionId = paymentDocument.ContainsField("transactionId")
+                ? paymentDocument.GetValue<string>("transactionId")
+                : null;
+
+            await SyncTransactionStatusAsync(linkedTransactionId, userId, intent.Status, stripeEvent.Type ?? "webhook");
+
             return true;
+        }
+
+        private async Task SyncTransactionStatusAsync(string? transactionId, string userId, string? providerStatus, string source)
+        {
+            if (string.IsNullOrWhiteSpace(transactionId) || string.IsNullOrWhiteSpace(userId))
+                return;
+
+            var mappedStatus = MapProviderStatusToBusinessStatus(providerStatus);
+            if (mappedStatus is null)
+                return;
+
+            var updatedTransaction = await _transactionService.UpdateTransactionStatusAsync(transactionId, mappedStatus.Value, userId);
+            if (updatedTransaction is null)
+            {
+                _logger.LogWarning(
+                    "Transaction sync skipped. TransactionId={TransactionId}, UserId={UserId}, ProviderStatus={ProviderStatus}, Source={Source}",
+                    transactionId,
+                    userId,
+                    providerStatus,
+                    source);
+                return;
+            }
+
+            _logger.LogInformation(
+                "Transaction status synced from provider. TransactionId={TransactionId}, UserId={UserId}, BusinessStatus={BusinessStatus}, ProviderStatus={ProviderStatus}, Source={Source}",
+                transactionId,
+                userId,
+                mappedStatus,
+                providerStatus,
+                source);
+        }
+
+        private static Domain.Models.TransactionStatus? MapProviderStatusToBusinessStatus(string? providerStatus)
+        {
+            if (string.IsNullOrWhiteSpace(providerStatus))
+                return null;
+
+            return providerStatus.ToLowerInvariant() switch
+            {
+                "succeeded" => Domain.Models.TransactionStatus.Succeeded,
+                "canceled" => Domain.Models.TransactionStatus.Failed,
+                "requires_payment_method" => Domain.Models.TransactionStatus.Failed,
+                "processing" => Domain.Models.TransactionStatus.Pending,
+                "requires_confirmation" => Domain.Models.TransactionStatus.Pending,
+                "requires_action" => Domain.Models.TransactionStatus.Pending,
+                "requires_capture" => Domain.Models.TransactionStatus.Pending,
+                _ => null,
+            };
         }
 
         private void EnsureWebhookSecretConfigured()
@@ -292,6 +423,8 @@ namespace FinTechAPI.Infrastructure.Services
                 Status = document.Status,
                 StripePaymentIntentId = document.StripePaymentIntentId,
                 TransactionId = document.TransactionId,
+                LastWebhookEvent = document.LastWebhookEvent,
+                LastStripeEventId = document.LastStripeEventId,
                 CreatedAt = document.CreatedAt.ToDateTime(),
                 UpdatedAt = document.UpdatedAt.ToDateTime(),
             };
