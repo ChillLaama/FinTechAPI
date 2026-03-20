@@ -39,7 +39,7 @@ export function ForgotPassword() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/10 border border-success/30">
             <CheckCircle2 className="w-8 h-8 text-success" />
           </div>
-          
+
           <div className="space-y-2">
             <h1 className="text-3xl text-foreground">Check your email</h1>
             <p className="text-muted-foreground">
@@ -91,7 +91,7 @@ export function ForgotPassword() {
           <ArrowLeft className="w-4 h-4" />
           Back to sign in
         </Link>
-        
+
         <h1 className="text-3xl text-foreground">Forgot password?</h1>
         <p className="text-muted-foreground">
           Enter your email and we’ll send a password reset link

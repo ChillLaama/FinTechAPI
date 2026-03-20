@@ -36,9 +36,9 @@ namespace FinTechAPI.API.Controllers
             Response.Cookies.Append("Authorization", authResponse.Token, new CookieOptions
             {
                 HttpOnly = true,
-                Secure   = true,
+                Secure = true,
                 SameSite = SameSiteMode.None,
-                Expires  = authResponse.Expiration
+                Expires = authResponse.Expiration
             });
 
             return Ok(authResponse);

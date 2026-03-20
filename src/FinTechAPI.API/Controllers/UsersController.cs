@@ -106,7 +106,7 @@ namespace FinTechAPI.API.Controllers
             {
                 await FirebaseAuth.DefaultInstance.UpdateUserAsync(new UserRecordArgs
                 {
-                    Uid      = uid,
+                    Uid = uid,
                     Disabled = true
                 });
                 return NoContent();

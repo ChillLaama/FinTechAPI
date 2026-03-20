@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 import {
   DollarSign,
   Send,
@@ -9,6 +11,7 @@ import {
   XCircle,
   Loader2,
   ArrowLeft,
+  CreditCard,
 } from "lucide-react";
 import {
   createTransaction,
@@ -17,13 +20,13 @@ import {
   updateTransactionStatus,
   currencyLabels,
   getAccounts,
-  getCurrencyLabel,
   toCurrencyValue,
   transactionTypeValues,
+  reconcilePayment,
 } from "../api/client";
 import type { ApiAccount, ApiTransaction } from "../api/client";
 
-type PaymentStep = "form" | "processing" | "result";
+type PaymentStep = "form" | "processing" | "checkout" | "result";
 
 interface PaymentResult {
   success: boolean;
@@ -31,11 +34,113 @@ interface PaymentResult {
   paymentId?: string;
   stripePaymentIntentId?: string;
   idempotencyKey?: string;
+  providerStatus?: string;
   message: string;
 }
 
+interface CheckoutState {
+  clientSecret: string;
+  paymentId: string;
+  stripePaymentIntentId: string;
+  transactionId: string;
+  idempotencyKey: string;
+  amount: number;
+  currency: string;
+}
+
+interface CheckoutFormProps {
+  onConfirmed: (status: string) => Promise<void>;
+  onFailed: (message: string) => Promise<void>;
+  onPending: (status: string) => Promise<void>;
+}
+
+const stripePublishableKey =
+  (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined)?.trim() ??
+  "";
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+
 function formatMoney(amount: number, currencyCode: string): string {
-  return `${currencyCode} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${currencyCode} ${amount.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function CheckoutForm({ onConfirmed, onFailed, onPending }: CheckoutFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const handleConfirm = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!stripe || !elements) {
+      setLocalError("Stripe checkout is not ready. Try again in a moment.");
+      return;
+    }
+
+    setSubmitting(true);
+    setLocalError(null);
+
+    const result = await stripe.confirmPayment({
+      elements,
+      redirect: "if_required",
+    });
+
+    if (result.error) {
+      setSubmitting(false);
+      await onFailed(result.error.message ?? "Payment confirmation failed.");
+      return;
+    }
+
+    const status = result.paymentIntent?.status ?? "unknown";
+    setSubmitting(false);
+
+    if (status === "succeeded") {
+      await onConfirmed(status);
+      return;
+    }
+
+    if (
+      status === "processing" ||
+      status === "requires_capture" ||
+      status === "requires_action"
+    ) {
+      await onPending(status);
+      return;
+    }
+
+    await onFailed(`Payment confirmation returned status: ${status}`);
+  };
+
+  return (
+    <form onSubmit={handleConfirm} className="space-y-4">
+      {localError && (
+        <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+          <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">{localError}</p>
+        </div>
+      )}
+
+      <div className="p-4 bg-secondary/30 rounded-lg border border-border">
+        <PaymentElement
+          options={{
+            layout: "tabs",
+          }}
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={submitting || !stripe || !elements}
+        className="w-full px-6 py-3 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <CreditCard className="w-5 h-5" />
+        {submitting ? "Confirming..." : "Confirm card payment"}
+      </button>
+    </form>
+  );
 }
 
 export function CreatePayment() {
@@ -44,6 +149,7 @@ export function CreatePayment() {
   const [result, setResult] = useState<PaymentResult | null>(null);
   const [accounts, setAccounts] = useState<ApiAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [checkoutState, setCheckoutState] = useState<CheckoutState | null>(null);
 
   const [formData, setFormData] = useState({
     amount: "",
@@ -93,11 +199,16 @@ export function CreatePayment() {
       return;
     }
 
+    const amountValue = Number.parseFloat(formData.amount);
+    if (Number.isNaN(amountValue) || amountValue <= 0) {
+      setFormError("Amount must be a positive number.");
+      return;
+    }
+
     setFormError(null);
     setStep("processing");
 
     try {
-      const amountValue = Number.parseFloat(formData.amount);
       const idempotencyKey = getAttemptKey();
 
       const transaction = await createTransaction({
@@ -111,59 +222,125 @@ export function CreatePayment() {
         accountId: String(selectedAccount.id),
       });
 
-      let paymentIntent;
-      let finalizedTransaction = transaction;
-      try {
-        paymentIntent = await createPaymentIntent(
-          {
-            amount: amountValue,
-            currency: formData.currency.toLowerCase(),
-            description: `${formData.recipient}: ${formData.description}`,
-            transactionId: String(transaction.id),
-          },
-          idempotencyKey,
-        );
+      const paymentIntent = await createPaymentIntent(
+        {
+          amount: amountValue,
+          currency: formData.currency.toLowerCase(),
+          description: `${formData.recipient}: ${formData.description}`,
+          transactionId: String(transaction.id),
+        },
+        idempotencyKey,
+      );
 
-        finalizedTransaction = await updateTransactionStatus(
-          String(transaction.id),
-          1,
-        );
-      } catch (paymentError) {
-        // Payment failed: keep the transaction for audit trail, but mark it as failed.
-        try {
-          await updateTransactionStatus(String(transaction.id), 2);
-        } catch (statusError) {
-          console.error(
-            "Failed to mark transaction as failed after payment error",
-            statusError,
-          );
-        }
-
-        throw paymentError;
-      }
-
-      setResult({
-        success: true,
-        transaction: finalizedTransaction,
+      setCheckoutState({
+        clientSecret: paymentIntent.clientSecret,
         paymentId: paymentIntent.paymentId,
         stripePaymentIntentId: paymentIntent.stripePaymentIntentId,
+        transactionId: String(transaction.id),
         idempotencyKey,
-        message: "Payment intent was created successfully.",
+        amount: amountValue,
+        currency: formData.currency,
       });
-      currentAttemptKeyRef.current = null;
+      setStep("checkout");
     } catch (requestError) {
       const message =
         requestError instanceof Error
           ? requestError.message
-          : "Payment was not created";
+          : "Payment intent was not created";
       setResult({
         success: false,
         idempotencyKey: currentAttemptKeyRef.current ?? undefined,
         message,
       });
-    } finally {
       setStep("result");
     }
+  };
+
+  const handleCheckoutConfirmed = async (providerStatus: string) => {
+    if (!checkoutState) {
+      return;
+    }
+
+    setStep("processing");
+
+    let finalizedTransaction: ApiTransaction | undefined;
+    let syncedStatus = providerStatus;
+
+    try {
+      const reconciled = await reconcilePayment(checkoutState.paymentId);
+      syncedStatus = reconciled.status;
+
+      if (syncedStatus === "succeeded") {
+        finalizedTransaction = await updateTransactionStatus(
+          checkoutState.transactionId,
+          1,
+        );
+      }
+    } catch {
+      // Keep provider status from Stripe SDK if reconciliation is temporarily unavailable.
+    }
+
+    setResult({
+      success: syncedStatus === "succeeded",
+      transaction: finalizedTransaction,
+      paymentId: checkoutState.paymentId,
+      stripePaymentIntentId: checkoutState.stripePaymentIntentId,
+      idempotencyKey: checkoutState.idempotencyKey,
+      providerStatus: syncedStatus,
+      message:
+        syncedStatus === "succeeded"
+          ? "Card payment completed successfully."
+          : `Payment confirmation completed with provider status: ${syncedStatus}.`,
+    });
+
+    currentAttemptKeyRef.current = null;
+    setStep("result");
+  };
+
+  const handleCheckoutPending = async (providerStatus: string) => {
+    if (!checkoutState) {
+      return;
+    }
+
+    try {
+      await reconcilePayment(checkoutState.paymentId);
+    } catch {
+      // The pending state will be retried by webhook reconciliation.
+    }
+
+    setResult({
+      success: true,
+      paymentId: checkoutState.paymentId,
+      stripePaymentIntentId: checkoutState.stripePaymentIntentId,
+      idempotencyKey: checkoutState.idempotencyKey,
+      providerStatus,
+      message: `Payment confirmation submitted. Current provider status: ${providerStatus}.`,
+    });
+
+    currentAttemptKeyRef.current = null;
+    setStep("result");
+  };
+
+  const handleCheckoutFailed = async (message: string) => {
+    if (!checkoutState) {
+      return;
+    }
+
+    try {
+      await updateTransactionStatus(checkoutState.transactionId, 2);
+    } catch {
+      // Keep failure context in UI even if status update fails.
+    }
+
+    setResult({
+      success: false,
+      paymentId: checkoutState.paymentId,
+      stripePaymentIntentId: checkoutState.stripePaymentIntentId,
+      idempotencyKey: checkoutState.idempotencyKey,
+      message,
+    });
+
+    setStep("result");
   };
 
   const resetForm = () => {
@@ -175,6 +352,7 @@ export function CreatePayment() {
       recipient: "",
       description: "",
     });
+    setCheckoutState(null);
     setStep("form");
     setResult(null);
     setFormError(null);
@@ -195,7 +373,7 @@ export function CreatePayment() {
         <div>
           <h1 className="text-3xl mb-2">Create payment</h1>
           <p className="text-muted-foreground">
-            Create a payment request and track provider reconciliation
+            Create a payment request, confirm card details, and track provider reconciliation
           </p>
         </div>
       </div>
@@ -293,7 +471,7 @@ export function CreatePayment() {
               className="w-full px-6 py-3 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Send className="w-5 h-5" />
-              Send payment
+              Create payment intent
             </button>
           </form>
         </div>
@@ -312,10 +490,69 @@ export function CreatePayment() {
             <div>
               <h2 className="text-2xl mb-2">Processing payment</h2>
               <p className="text-muted-foreground">
-                Creating transaction and provider payment intent...
+                Preparing transaction and synchronizing provider state...
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {step === "checkout" && checkoutState && (
+        <div className="bg-card p-8 rounded-xl border border-border space-y-6">
+          <div className="space-y-2">
+            <h2 className="text-2xl">Card checkout</h2>
+            <p className="text-muted-foreground">
+              Confirm payment for {formatMoney(checkoutState.amount, checkoutState.currency)}.
+            </p>
+          </div>
+
+          <div className="bg-secondary/30 p-4 rounded-lg space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Payment ID</span>
+              <code>{checkoutState.paymentId}</code>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Provider reference</span>
+              <code>{checkoutState.stripePaymentIntentId}</code>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Idempotency key</span>
+              <code className="text-xs break-all text-right max-w-[220px]">
+                {checkoutState.idempotencyKey}
+              </code>
+            </div>
+          </div>
+
+          {!stripePromise && (
+            <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Missing VITE_STRIPE_PUBLISHABLE_KEY. Configure it to enable card checkout.
+              </p>
+            </div>
+          )}
+
+          {stripePromise && (
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret: checkoutState.clientSecret,
+              }}
+            >
+              <CheckoutForm
+                onConfirmed={handleCheckoutConfirmed}
+                onPending={handleCheckoutPending}
+                onFailed={handleCheckoutFailed}
+              />
+            </Elements>
+          )}
+
+          <button
+            onClick={resetForm}
+            className="w-full px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+          >
+            Cancel and start over
+          </button>
         </div>
       )}
 
@@ -336,101 +573,68 @@ export function CreatePayment() {
 
             <div>
               <h2 className="text-2xl mb-2">
-                {result.success
-                  ? "Payment sent successfully"
-                  : "Payment failed"}
+                {result.success ? "Checkout processed" : "Checkout failed"}
               </h2>
               <p className="text-muted-foreground">{result.message}</p>
             </div>
 
-            {result.transaction && (
-              <div className="max-w-md mx-auto space-y-4">
-                <div className="bg-secondary/30 p-4 rounded-lg space-y-3 text-left">
+            <div className="max-w-md mx-auto space-y-4">
+              <div className="bg-secondary/30 p-4 rounded-lg space-y-3 text-left">
+                {result.transaction && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">
-                      Transaction ID
-                    </span>
-                    <code className="text-sm font-mono">
-                      #{result.transaction.id}
+                    <span className="text-sm text-muted-foreground">Transaction ID</span>
+                    <code className="text-sm font-mono">#{result.transaction.id}</code>
+                  </div>
+                )}
+                {result.paymentId && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Payment ID</span>
+                    <code className="text-sm font-mono">{result.paymentId}</code>
+                  </div>
+                )}
+                {result.stripePaymentIntentId && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Provider reference</span>
+                    <code className="text-sm font-mono">{result.stripePaymentIntentId}</code>
+                  </div>
+                )}
+                {result.providerStatus && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Provider status</span>
+                    <span className="text-sm">{result.providerStatus}</span>
+                  </div>
+                )}
+                {result.idempotencyKey && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Idempotency key</span>
+                    <code className="text-xs font-mono break-all text-right max-w-[220px]">
+                      {result.idempotencyKey}
                     </code>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">
-                      Amount
-                    </span>
-                    <span className="text-sm">
-                      {formatMoney(
-                        result.transaction.amount,
-                        getCurrencyLabel(result.transaction.currency),
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">
-                      Account
-                    </span>
-                    <span className="text-sm">
-                      {selectedAccount?.name || result.transaction.accountId}
-                    </span>
-                  </div>
-                  {result.paymentId && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">
-                        Payment ID
-                      </span>
-                      <code className="text-sm font-mono">
-                        {result.paymentId}
-                      </code>
-                    </div>
-                  )}
-                  {result.stripePaymentIntentId && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">
-                        Provider reference
-                      </span>
-                      <code className="text-sm font-mono">
-                        {result.stripePaymentIntentId}
-                      </code>
-                    </div>
-                  )}
-                  {result.idempotencyKey && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">
-                        Idempotency key
-                      </span>
-                      <code className="text-xs font-mono break-all text-right max-w-[220px]">
-                        {result.idempotencyKey}
-                      </code>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
-            )}
+            </div>
 
             <div className="flex gap-3 pt-4">
-              {result.success && (
-                <>
-                  {result.paymentId && (
-                    <button
-                      onClick={() => navigate(`/payments/${result.paymentId}`)}
-                      className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                      View payment details
-                    </button>
-                  )}
-                  <button
-                    onClick={() => navigate("/transactions")}
-                    className="flex-1 px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
-                  >
-                    View transactions
-                  </button>
-                </>
+              {result.paymentId && (
+                <button
+                  onClick={() => navigate(`/payments/${result.paymentId}`)}
+                  className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  View payment details
+                </button>
               )}
+              <button
+                onClick={() => navigate("/transactions")}
+                className="flex-1 px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+              >
+                View transactions
+              </button>
               <button
                 onClick={resetForm}
                 className="flex-1 px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
               >
-                {result.success ? "Create another payment" : "Try again"}
+                Create another payment
               </button>
             </div>
           </div>

@@ -99,6 +99,7 @@ public static class DependencyInjectionConfig
         services.AddScoped<IPlatformBalanceService, PlatformBalanceService>();
         services.AddScoped<IPlatformSummaryService, PlatformSummaryService>();
         services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<IPayoutService, PayoutService>();
         services.AddScoped<IReportingService, ReportingService>();
         services.AddScoped<ISecurityService, SecurityService>();
         services.AddScoped<ITransactionService, TransactionService>();

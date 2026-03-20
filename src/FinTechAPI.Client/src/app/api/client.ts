@@ -150,6 +150,31 @@ export interface ApiUpdateUserSettingsPolicyPayload {
   lockedFields: string[];
 }
 
+export interface ApiCreatePayoutPayload {
+  amount: number;
+  currency: string;
+  description?: string;
+  stripeAccountId?: string;
+  externalReference?: string;
+}
+
+export interface ApiPayout {
+  id: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  stripePayoutId: string;
+  stripeAccountId?: string | null;
+  reserveStatus: string;
+  reserveId: string;
+  failureCode?: string | null;
+  failureMessage?: string | null;
+  externalReference?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const currencyLabels: Record<number, string> = {
   0: "USD",
   1: "EUR",
@@ -293,9 +318,12 @@ export function resetPassword(oobCode: string, newPassword: string) {
 }
 
 export function sendVerificationEmail() {
-  return apiRequest<ApiAuthOperationResult>("/api/auth/send-verification-email", {
-    method: "POST",
-  });
+  return apiRequest<ApiAuthOperationResult>(
+    "/api/auth/send-verification-email",
+    {
+      method: "POST",
+    },
+  );
 }
 
 export function verifyEmail(oobCode: string) {
@@ -412,6 +440,33 @@ export function getPaymentById(paymentId: string) {
 
 export function reconcilePayment(paymentId: string) {
   return apiRequest<ApiPayment>(`/api/payments/${paymentId}/reconcile`, {
+    method: "POST",
+  });
+}
+
+export function createPayout(
+  payload: ApiCreatePayoutPayload,
+  idempotencyKey: string,
+) {
+  return apiRequest<ApiPayout>("/api/payouts", {
+    method: "POST",
+    headers: {
+      "Idempotency-Key": idempotencyKey,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getPayouts() {
+  return apiRequest<ApiPayout[]>("/api/payouts");
+}
+
+export function getPayoutById(payoutId: string) {
+  return apiRequest<ApiPayout>(`/api/payouts/${payoutId}`);
+}
+
+export function reconcilePayout(payoutId: string) {
+  return apiRequest<ApiPayout>(`/api/payouts/${payoutId}/reconcile`, {
     method: "POST",
   });
 }

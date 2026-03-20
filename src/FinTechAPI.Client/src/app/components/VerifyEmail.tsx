@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { Mail, CheckCircle2, Clock, RefreshCw, AlertCircle } from "lucide-react";
+import {
+  Mail,
+  CheckCircle2,
+  Clock,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { sendVerificationEmail, verifyEmail } from "../api/client";
 
@@ -134,14 +140,12 @@ export function VerifyEmail() {
 
       {/* Resend */}
       <div className="text-center space-y-3">
-        <p className="text-sm text-muted-foreground">Didn’t receive the code?</p>
-        
+        <p className="text-sm text-muted-foreground">
+          Didn’t receive the code?
+        </p>
+
         {canResend ? (
-          <Button
-            variant="outline"
-            onClick={handleResend}
-            className="w-full"
-          >
+          <Button variant="outline" onClick={handleResend} className="w-full">
             <RefreshCw className="w-4 h-4 mr-2" />
             Resend code
           </Button>

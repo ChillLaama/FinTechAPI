@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   CreditCard,
   PlusCircle,
+  Wallet,
   FolderOpen,
   Activity,
   Settings,
@@ -21,6 +22,7 @@ export function Layout() {
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/transactions", label: "Transactions", icon: CreditCard },
     { path: "/create-payment", label: "Create payment", icon: PlusCircle },
+    { path: "/payouts", label: "Payouts", icon: Wallet },
     { path: "/accounts", label: "Account profiles", icon: FolderOpen },
   ];
 

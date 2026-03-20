@@ -374,7 +374,10 @@ export function Settings() {
               }
               disabled={isLocked("sessionTimeout")}
             >
-              <SelectTrigger id="sessionTimeout" className="bg-input-background">
+              <SelectTrigger
+                id="sessionTimeout"
+                className="bg-input-background"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -539,7 +542,12 @@ function SettingToggle({
           {locked ? " (locked by policy)" : ""}
         </p>
       </div>
-      <Switch id={id} checked={checked} disabled={locked} onCheckedChange={onChange} />
+      <Switch
+        id={id}
+        checked={checked}
+        disabled={locked}
+        onCheckedChange={onChange}
+      />
     </div>
   );
 }
