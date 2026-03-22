@@ -8,7 +8,7 @@ namespace FinTechAPI.API.Controllers
     /// Manages user roles via Firebase custom claims.
     /// Roles are stored as the "role" custom claim on each Firebase user.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = "admin")]
     [Route("api/[controller]")]
     [ApiController]
     public class RolesController : ControllerBase

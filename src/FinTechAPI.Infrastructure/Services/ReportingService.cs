@@ -29,12 +29,13 @@ namespace FinTechAPI.Infrastructure.Services
             return snapshot.Documents.Select(doc => ToTransaction(doc.ConvertTo<TransactionDocument>()));
         }
 
-        public async Task<IEnumerable<Transaction>> GetTransactionsByDateRangeAsync(DateTime startDate, DateTime endDate)
+        public async Task<IEnumerable<Transaction>> GetTransactionsByDateRangeAsync(DateTime startDate, DateTime endDate, string userId)
         {
             var start = Timestamp.FromDateTime(startDate.ToUniversalTime());
             var end = Timestamp.FromDateTime(endDate.ToUniversalTime());
 
             var snapshot = await _firestore.Transactions
+                .WhereEqualTo("userId", userId)
                 .WhereGreaterThanOrEqualTo("transactionDate", start)
                 .WhereLessThanOrEqualTo("transactionDate", end)
                 .OrderByDescending("transactionDate")

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace FinTechAPI.Application.DTOs
 {
     public class UserProfileDto
@@ -15,9 +17,18 @@ namespace FinTechAPI.Application.DTOs
 
     public class UpdateUserProfileDto
     {
+        [Required]
+        [StringLength(100, MinimumLength = 1)]
         public string FirstName { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100, MinimumLength = 1)]
         public string LastName { get; set; } = string.Empty;
+
+        [StringLength(20)]
         public string Phone { get; set; } = string.Empty;
+
+        [StringLength(200)]
         public string Location { get; set; } = string.Empty;
     }
 

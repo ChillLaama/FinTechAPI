@@ -46,8 +46,10 @@ namespace FinTechAPI.API.Controllers
             User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
 
         [HttpGet]
-        public async Task<IActionResult> GetUsers()
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> GetUsers([FromQuery] int maxResults = 100)
         {
+            maxResults = Math.Clamp(maxResults, 1, 1000);
             var pagedEnumerable = FirebaseAuth.DefaultInstance.ListUsersAsync(null);
             var users = new List<object>();
 
@@ -60,6 +62,9 @@ namespace FinTechAPI.API.Controllers
                     user.DisplayName,
                     user.Disabled
                 });
+
+                if (users.Count >= maxResults)
+                    break;
             }
 
             return Ok(users);
@@ -86,6 +91,7 @@ namespace FinTechAPI.API.Controllers
         }
 
         [HttpDelete("{uid}")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> DeleteUser(string uid)
         {
             try
@@ -100,6 +106,7 @@ namespace FinTechAPI.API.Controllers
         }
 
         [HttpPatch("{uid}/disable")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> DisableUser(string uid)
         {
             try

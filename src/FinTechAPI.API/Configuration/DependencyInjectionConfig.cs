@@ -8,6 +8,7 @@ using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Payments;
 using FinTechAPI.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
 
 namespace FinTechAPI.API.Configuration;
@@ -109,10 +110,43 @@ public static class DependencyInjectionConfig
             .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>("Firebase", null);
         services.AddAuthorization();
 
+        // ── Rate Limiting ────────────────────────────────────────────────
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = 429;
+            options.AddFixedWindowLimiter("fixed", limiter =>
+            {
+                limiter.PermitLimit = 100;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueLimit = 0;
+            });
+            options.AddFixedWindowLimiter("auth", limiter =>
+            {
+                limiter.PermitLimit = 20;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueLimit = 0;
+            });
+        });
+
         // ── CORS ─────────────────────────────────────────────────────────
         services.AddCors(options =>
             options.AddPolicy("MauiPolicy", p =>
-                p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+            {
+                if (environment.IsDevelopment())
+                {
+                    p.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:5000")
+                     .AllowAnyHeader()
+                     .AllowAnyMethod()
+                     .AllowCredentials();
+                }
+                else
+                {
+                    p.WithOrigins(configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
+                     .AllowAnyHeader()
+                     .AllowAnyMethod()
+                     .AllowCredentials();
+                }
+            }));
 
         // ── Swagger ──────────────────────────────────────────────────────
         services.AddSwaggerGen(c =>

@@ -5,7 +5,7 @@ namespace FinTechAPI.Application.Interfaces
     public interface IReportingService
     {
         Task<IEnumerable<Transaction>> GetTransactionsByTypeAsync(TransactionType transactionType, string userId);
-        Task<IEnumerable<Transaction>> GetTransactionsByDateRangeAsync(DateTime startDate, DateTime endDate);
+        Task<IEnumerable<Transaction>> GetTransactionsByDateRangeAsync(DateTime startDate, DateTime endDate, string userId);
         decimal CalculateTotalAmount(IEnumerable<Transaction> transactions);
     }
 }

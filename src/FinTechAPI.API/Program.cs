@@ -28,6 +28,20 @@ app.UseStaticFiles(); // serves wwwroot (including swagger-auto-auth.js)
 if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 
+// Global error handling — prevents stack trace leaks in production
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = 500;
+        var isDev = context.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment();
+        var message = isDev ? "An internal server error occurred." : "Internal server error.";
+        await context.Response.WriteAsJsonAsync(new { message });
+    });
+});
+
+app.UseRateLimiter();
 app.UseCors("MauiPolicy");
 app.UseAuthentication();
 app.UseAuthorization();

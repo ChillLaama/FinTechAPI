@@ -1,5 +1,6 @@
 using FinTechAPI.Application.DTOs;
 using FinTechAPI.Application.Interfaces;
+using FinTechAPI.Domain.Models;
 using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Firebase.Documents;
 
@@ -59,7 +60,7 @@ namespace FinTechAPI.Infrastructure.Services
                 .Sum(doc => doc.AmountMinorUnits);
 
             // Pending status is currently the closest available signal for review backlog.
-            var pendingReviewCount = transactionDocs.Count(doc => doc.Status == 0);
+            var pendingReviewCount = transactionDocs.Count(doc => doc.Status == (int)TransactionStatus.Pending);
 
             return new PlatformSummaryDto
             {
