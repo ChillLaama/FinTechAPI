@@ -14,15 +14,20 @@ namespace FinTechAPI.API.Controllers
     {
         private readonly IPayoutService _payoutService;
         private readonly IWebHostEnvironment _environment;
+        private readonly IAuditService _audit;
 
-        public PayoutsController(IPayoutService payoutService, IWebHostEnvironment environment)
+        public PayoutsController(IPayoutService payoutService, IWebHostEnvironment environment, IAuditService audit)
         {
             _payoutService = payoutService;
             _environment = environment;
+            _audit = audit;
         }
 
         private string GetCurrentUserId() =>
             User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+
+        private string? GetCorrelationId() =>
+            HttpContext.Items.TryGetValue("CorrelationId", out var val) ? val as string : null;
 
         [HttpPost]
         public async Task<ActionResult<PayoutDto>> CreatePayout(
@@ -51,6 +56,8 @@ namespace FinTechAPI.API.Controllers
             try
             {
                 var payout = await _payoutService.CreatePayoutAsync(dto, userId, effectiveIdempotencyKey);
+                await _audit.LogAsync(userId, "Payout.Created", "Payout", payout.Id,
+                    new { dto.Amount, dto.Currency }, GetCorrelationId());
                 return Ok(payout);
             }
             catch (ArgumentException ex)
@@ -105,6 +112,8 @@ namespace FinTechAPI.API.Controllers
                 if (payout is null)
                     return NotFound();
 
+                await _audit.LogAsync(userId, "Payout.Reconciled", "Payout", payoutId,
+                    new { payout.Status }, GetCorrelationId());
                 return Ok(payout);
             }
             catch (PaymentConfigurationException ex)

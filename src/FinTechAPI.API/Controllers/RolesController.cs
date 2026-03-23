@@ -18,9 +18,9 @@ namespace FinTechAPI.API.Controllers
         {
             try
             {
-                var user  = await FirebaseAuth.DefaultInstance.GetUserAsync(uid);
+                var user = await FirebaseAuth.DefaultInstance.GetUserAsync(uid);
                 var claims = user.CustomClaims;
-                var role  = claims != null && claims.TryGetValue("role", out var r) ? r?.ToString() : null;
+                var role = claims != null && claims.TryGetValue("role", out var r) ? r?.ToString() : null;
                 return Ok(new { uid, role });
             }
             catch (FirebaseAuthException)

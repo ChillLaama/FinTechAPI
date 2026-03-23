@@ -1,4 +1,5 @@
 using FinTechAPI.API.Configuration;
+using FinTechAPI.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +25,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles(); // serves wwwroot (including swagger-auto-auth.js)
+
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();

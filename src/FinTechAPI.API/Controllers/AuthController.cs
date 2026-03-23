@@ -12,11 +12,16 @@ namespace FinTechAPI.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IAuditService _audit;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IAuditService audit)
         {
             _authService = authService;
+            _audit = audit;
         }
+
+        private string? GetCorrelationId() =>
+            HttpContext.Items.TryGetValue("CorrelationId", out var val) ? val as string : null;
 
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterUserDto registerDto)
@@ -24,6 +29,9 @@ namespace FinTechAPI.API.Controllers
             var (success, error, userDto) = await _authService.RegisterAsync(registerDto);
             if (!success)
                 return BadRequest(new { message = error });
+
+            await _audit.LogAsync(userDto!.Id, "User.Registered", "User", userDto.Id,
+                new { registerDto.Email }, GetCorrelationId());
             return Ok(userDto);
         }
 
@@ -33,6 +41,9 @@ namespace FinTechAPI.API.Controllers
             var authResponse = await _authService.LoginAsync(loginDto);
             if (!authResponse.Success)
                 return Unauthorized(new { message = authResponse.ErrorMessage ?? "Invalid credentials." });
+
+            await _audit.LogAsync(authResponse.User?.Id ?? "unknown", "User.LoggedIn", "User", authResponse.User?.Id,
+                new { loginDto.Email }, GetCorrelationId());
 
             // Store token in HttpOnly cookie for browser/MAUI clients
             Response.Cookies.Append("Authorization", authResponse.Token, new CookieOptions

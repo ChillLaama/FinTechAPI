@@ -374,6 +374,19 @@ export function getAccounts() {
   return apiRequest<ApiAccount[]>("/api/accounts");
 }
 
+export interface ApiCreateAccountPayload {
+  name: string;
+  accountType: number;
+  currency: number;
+}
+
+export function createAccount(payload: ApiCreateAccountPayload) {
+  return apiRequest<ApiAccount>("/api/accounts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function getTransactions() {
   return apiRequest<ApiTransaction[]>("/api/transactions");
 }

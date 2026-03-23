@@ -12,11 +12,20 @@ import {
   LogOut,
 } from "lucide-react";
 import { useState } from "react";
-import { logout } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 export function Layout() {
   const location = useLocation();
+  const { user, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  const initials = user
+    ? `${(user.firstName?.[0] ?? "").toUpperCase()}${(user.lastName?.[0] ?? "").toUpperCase()}` || "?"
+    : "?";
+  const displayName = user
+    ? `${user.firstName} ${user.lastName}`.trim() || user.email
+    : "User";
+  const displayEmail = user?.email ?? "";
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -100,7 +109,7 @@ export function Layout() {
                 className="flex items-center gap-3 hover:opacity-80 transition-opacity"
               >
                 <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-sm text-primary-foreground">AP</span>
+                  <span className="text-sm text-primary-foreground">{initials}</span>
                 </div>
               </button>
 
@@ -113,10 +122,10 @@ export function Layout() {
                   <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-lg shadow-lg z-20 overflow-hidden">
                     <div className="p-3 border-b border-border">
                       <p className="text-sm text-foreground">
-                        Alexander Petrov
+                        {displayName}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        demo@financehub.com
+                        {displayEmail}
                       </p>
                     </div>
                     <div className="py-1">
@@ -138,17 +147,16 @@ export function Layout() {
                       </Link>
                     </div>
                     <div className="border-t border-border py-1">
-                      <Link
-                        to="/login"
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                      <button
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors w-full"
                         onClick={() => {
-                          logout();
                           setShowProfileMenu(false);
+                          logout();
                         }}
                       >
                         <LogOut className="w-4 h-4" />
                         Sign out
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 </>

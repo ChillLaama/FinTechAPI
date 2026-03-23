@@ -1,4 +1,5 @@
 import { createBrowserRouter } from "react-router";
+import { RootLayout } from "./components/RootLayout";
 import { Layout } from "./components/Layout";
 import { AuthLayout } from "./components/AuthLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -18,33 +19,38 @@ import { ResetPassword } from "./components/ResetPassword";
 
 export const router = createBrowserRouter([
   {
-    path: "/",
-    Component: ProtectedRoute,
+    Component: RootLayout,
     children: [
       {
-        Component: Layout,
+        path: "/",
+        Component: ProtectedRoute,
         children: [
-          { index: true, Component: Dashboard },
-          { path: "transactions", Component: Transactions },
-          { path: "create-payment", Component: CreatePayment },
-          { path: "payouts", Component: Payouts },
-          { path: "payments/:paymentId", Component: PaymentDetails },
-          { path: "accounts", Component: AccountsProfiles },
-          { path: "profile", Component: Profile },
-          { path: "settings", Component: Settings },
+          {
+            Component: Layout,
+            children: [
+              { index: true, Component: Dashboard },
+              { path: "transactions", Component: Transactions },
+              { path: "create-payment", Component: CreatePayment },
+              { path: "payouts", Component: Payouts },
+              { path: "payments/:paymentId", Component: PaymentDetails },
+              { path: "accounts", Component: AccountsProfiles },
+              { path: "profile", Component: Profile },
+              { path: "settings", Component: Settings },
+            ],
+          },
         ],
       },
-    ],
-  },
-  {
-    path: "/",
-    Component: AuthLayout,
-    children: [
-      { path: "login", Component: Login },
-      { path: "register", Component: Register },
-      { path: "forgot-password", Component: ForgotPassword },
-      { path: "verify-email", Component: VerifyEmail },
-      { path: "reset-password", Component: ResetPassword },
+      {
+        path: "/",
+        Component: AuthLayout,
+        children: [
+          { path: "login", Component: Login },
+          { path: "register", Component: Register },
+          { path: "forgot-password", Component: ForgotPassword },
+          { path: "verify-email", Component: VerifyEmail },
+          { path: "reset-password", Component: ResetPassword },
+        ],
+      },
     ],
   },
 ]);

@@ -15,7 +15,8 @@ namespace FinTechAPI.Tests.Controllers
         public AuthControllerTests()
         {
             _mockAuthService = new Mock<IAuthService>();
-            _controller      = new AuthController(_mockAuthService.Object);
+            var mockAudit = new Mock<IAuditService>();
+            _controller      = new AuthController(_mockAuthService.Object, mockAudit.Object);
             _controller.ControllerContext = new ControllerContext
             {
                 HttpContext = ControllerTestHelpers.CreateHttpContext("uid", "test@example.com")

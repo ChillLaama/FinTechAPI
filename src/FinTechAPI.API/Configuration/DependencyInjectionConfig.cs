@@ -104,6 +104,7 @@ public static class DependencyInjectionConfig
         services.AddScoped<IReportingService, ReportingService>();
         services.AddScoped<ISecurityService, SecurityService>();
         services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<IAuditService, AuditService>();
 
         // ── Authentication / Authorisation ───────────────────────────────
         services.AddAuthentication("Firebase")

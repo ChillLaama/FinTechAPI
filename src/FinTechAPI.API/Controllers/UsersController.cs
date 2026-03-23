@@ -1,5 +1,6 @@
 using FirebaseAdmin.Auth;
 using FinTechAPI.Application.DTOs;
+using FinTechAPI.Application.Interfaces;
 using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Firebase.Documents;
 using Google.Cloud.Firestore;
@@ -33,10 +34,12 @@ namespace FinTechAPI.API.Controllers
         };
 
         private readonly FirestoreProvider _firestore;
+        private readonly IAuditService _audit;
 
-        public UsersController(FirestoreProvider firestore)
+        public UsersController(FirestoreProvider firestore, IAuditService audit)
         {
             _firestore = firestore;
+            _audit = audit;
         }
 
         private string GetCurrentUserId() =>
@@ -44,6 +47,9 @@ namespace FinTechAPI.API.Controllers
 
         private string GetCurrentUserRole() =>
             User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+
+        private string? GetCorrelationId() =>
+            HttpContext.Items.TryGetValue("CorrelationId", out var val) ? val as string : null;
 
         [HttpGet]
         [Authorize(Roles = "admin")]
@@ -97,6 +103,8 @@ namespace FinTechAPI.API.Controllers
             try
             {
                 await FirebaseAuth.DefaultInstance.DeleteUserAsync(uid);
+                await _audit.LogAsync(GetCurrentUserId(), "User.Deleted", "User", uid,
+                    null, GetCorrelationId());
                 return NoContent();
             }
             catch (FirebaseAuthException ex)
@@ -116,6 +124,8 @@ namespace FinTechAPI.API.Controllers
                     Uid = uid,
                     Disabled = true
                 });
+                await _audit.LogAsync(GetCurrentUserId(), "User.Disabled", "User", uid,
+                    null, GetCorrelationId());
                 return NoContent();
             }
             catch (FirebaseAuthException ex)
@@ -235,6 +245,8 @@ namespace FinTechAPI.API.Controllers
             settings.UpdatedAt = Timestamp.GetCurrentTimestamp();
 
             await _firestore.UserSettings.Document(uid).SetAsync(settings, SetOptions.Overwrite);
+            await _audit.LogAsync(GetCurrentUserId(), "User.SettingsPolicy.Updated", "UserSettings", uid,
+                new { dto.LockedFields }, GetCorrelationId());
             return Ok(ToSettingsDto(settings));
         }
 

@@ -4,10 +4,11 @@ import { Eye, EyeOff, AlertCircle, Mail, Lock } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { login } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 export function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -14,15 +14,20 @@ namespace FinTechAPI.API.Controllers
     {
         private readonly IPaymentService _paymentService;
         private readonly IWebHostEnvironment _environment;
+        private readonly IAuditService _audit;
 
-        public PaymentsController(IPaymentService paymentService, IWebHostEnvironment environment)
+        public PaymentsController(IPaymentService paymentService, IWebHostEnvironment environment, IAuditService audit)
         {
             _paymentService = paymentService;
             _environment = environment;
+            _audit = audit;
         }
 
         private string GetCurrentUserId() =>
             User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+
+        private string? GetCorrelationId() =>
+            HttpContext.Items.TryGetValue("CorrelationId", out var val) ? val as string : null;
 
         [Authorize]
         [HttpPost("intents")]
@@ -53,6 +58,8 @@ namespace FinTechAPI.API.Controllers
             try
             {
                 var result = await _paymentService.CreatePaymentIntentAsync(dto, userId, effectiveIdempotencyKey);
+                await _audit.LogAsync(userId, "PaymentIntent.Created", "Payment", result.PaymentId,
+                    new { dto.Amount, dto.Currency }, GetCorrelationId());
                 return Ok(result);
             }
             catch (PaymentConfigurationException ex)
@@ -94,6 +101,8 @@ namespace FinTechAPI.API.Controllers
                 if (payment == null)
                     return NotFound();
 
+                await _audit.LogAsync(userId, "Payment.Reconciled", "Payment", paymentId,
+                    new { payment.Status }, GetCorrelationId());
                 return Ok(payment);
             }
             catch (PaymentConfigurationException ex)

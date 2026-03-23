@@ -22,6 +22,7 @@ namespace FinTechAPI.Tests
             var responseCookiesMock = new Mock<IResponseCookies>();
             httpContextMock.Setup(c => c.Request.Cookies).Returns(requestCookiesMock.Object);
             httpContextMock.Setup(c => c.Response.Cookies).Returns(responseCookiesMock.Object);
+            httpContextMock.Setup(c => c.Items).Returns(new Dictionary<object, object?>());
 
             return httpContextMock.Object;
         }

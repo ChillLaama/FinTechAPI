@@ -23,7 +23,8 @@ namespace FinTechAPI.Tests.Controllers
             _mockService = new Mock<IPaymentService>();
             var mockEnvironment = new Mock<IWebHostEnvironment>();
             mockEnvironment.SetupGet(e => e.EnvironmentName).Returns(Environments.Development);
-            _controller = new PaymentsController(_mockService.Object, mockEnvironment.Object);
+            var mockAudit = new Mock<IAuditService>();
+            _controller = new PaymentsController(_mockService.Object, mockEnvironment.Object, mockAudit.Object);
 
             var context = new DefaultHttpContext();
             context.User = new ClaimsPrincipal(new ClaimsIdentity(new[]
@@ -81,7 +82,7 @@ namespace FinTechAPI.Tests.Controllers
             var environment = new Mock<IWebHostEnvironment>();
             environment.SetupGet(e => e.EnvironmentName).Returns(Environments.Production);
 
-            var controller = new PaymentsController(_mockService.Object, environment.Object)
+            var controller = new PaymentsController(_mockService.Object, environment.Object, new Mock<IAuditService>().Object)
             {
                 ControllerContext = _controller.ControllerContext
             };
