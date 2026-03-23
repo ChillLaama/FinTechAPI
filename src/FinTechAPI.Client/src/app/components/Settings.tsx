@@ -485,7 +485,11 @@ export function Settings() {
       </div>
 
       <div className="bg-card border border-border rounded-lg p-6 space-y-3">
-        <Button variant="outline" className="w-full justify-start">
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={() => alert("Data export is not yet available. Contact support@financehub.com for assistance.")}
+        >
           <Download className="w-4 h-4 mr-2" />
           Download my data
         </Button>
@@ -493,6 +497,7 @@ export function Settings() {
         <Button
           variant="outline"
           className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={() => alert("Account deletion is not yet available. Contact support@financehub.com for assistance.")}
         >
           <Trash2 className="w-4 h-4 mr-2" />
           Delete account

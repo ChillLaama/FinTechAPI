@@ -8,6 +8,7 @@ using Moq;
 
 namespace FinTechAPI.Tests.Controllers
 {
+#pragma warning disable CS0618 // Balance is legacy but still tested for backward compat
     public class AccountsControllerTests
     {
         private readonly Mock<IAccountService> _mockAccountService;
@@ -127,4 +128,5 @@ namespace FinTechAPI.Tests.Controllers
             Assert.IsType<NotFoundObjectResult>(result);
         }
     }
+#pragma warning restore CS0618
 }

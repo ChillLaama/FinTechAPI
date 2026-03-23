@@ -45,8 +45,6 @@ namespace FinTechAPI.Infrastructure.Services
             account.UserId = userId;
             account.CreatedAt = DateTime.UtcNow;
             account.UpdatedAt = DateTime.UtcNow;
-            // New accounts always start with a neutral legacy balance in non-custodial mode.
-            account.Balance = 0m;
 
             var docRef = _firestore.Accounts.Document();
             account.Id = docRef.Id;
@@ -95,6 +93,7 @@ namespace FinTechAPI.Infrastructure.Services
             return doc.UserId == userId;
         }
 
+#pragma warning disable CS0618 // Obsolete Balance retained for Firestore backward compat
         private static Account ToAccount(AccountDocument d) => new()
         {
             Id = d.Id,
@@ -118,5 +117,6 @@ namespace FinTechAPI.Infrastructure.Services
             CreatedAt = Timestamp.FromDateTime(a.CreatedAt.ToUniversalTime()),
             UpdatedAt = Timestamp.FromDateTime(a.UpdatedAt.ToUniversalTime())
         };
+#pragma warning restore CS0618
     }
 }

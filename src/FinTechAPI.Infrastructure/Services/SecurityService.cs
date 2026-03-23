@@ -1,4 +1,5 @@
 using FinTechAPI.Application.Interfaces;
+using FinTechAPI.Application.Utilities;
 using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Firebase.Documents;
 using Transaction = FinTechAPI.Domain.Models.Transaction;
@@ -22,7 +23,7 @@ namespace FinTechAPI.Infrastructure.Services
         public async Task<IEnumerable<Transaction>> DetectAnomaliesAsync(decimal threshold)
         {
             var snapshot = await _firestore.Transactions
-                .WhereGreaterThan("amount", (double)threshold)
+                .WhereGreaterThan("amountMinorUnits", AmountConverter.ToMinorUnits(threshold))
                 .GetSnapshotAsync();
 
             return snapshot.Documents.Select(doc =>
@@ -31,7 +32,7 @@ namespace FinTechAPI.Infrastructure.Services
                 return new Transaction
                 {
                     Id              = d.Id,
-                    Amount          = (decimal)d.Amount,
+                    Amount          = AmountConverter.FromMinorUnits(d.AmountMinorUnits),
                     Currency        = (Currency)d.Currency,
                     Type            = (TransactionType)d.Type,
                     Description     = d.Description,

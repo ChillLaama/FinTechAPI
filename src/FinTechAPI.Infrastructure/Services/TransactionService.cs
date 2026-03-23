@@ -1,4 +1,5 @@
 using FinTechAPI.Application.Interfaces;
+using FinTechAPI.Application.Utilities;
 using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Firebase.Documents;
 using Google.Cloud.Firestore;
@@ -80,7 +81,7 @@ namespace FinTechAPI.Infrastructure.Services
 
             await _firestore.Transactions.Document(transactionId).UpdateAsync(new Dictionary<string, object>
             {
-                ["amount"] = (double)transactionDetails.Amount,
+                ["amountMinorUnits"] = AmountConverter.ToMinorUnits(transactionDetails.Amount),
                 ["type"] = (int)transactionDetails.Type,
                 ["status"] = (int)transactionDetails.Status,
                 ["category"] = transactionDetails.Category,
@@ -89,7 +90,7 @@ namespace FinTechAPI.Infrastructure.Services
                 ["updatedAt"] = Timestamp.GetCurrentTimestamp()
             });
 
-            existing.Amount = (double)transactionDetails.Amount;
+            existing.AmountMinorUnits = AmountConverter.ToMinorUnits(transactionDetails.Amount);
             existing.Type = (int)transactionDetails.Type;
             existing.Status = (int)transactionDetails.Status;
             existing.Category = transactionDetails.Category;
@@ -141,7 +142,7 @@ namespace FinTechAPI.Infrastructure.Services
         private static Transaction ToTransaction(TransactionDocument d) => new()
         {
             Id = d.Id,
-            Amount = (decimal)d.Amount,
+            Amount = AmountConverter.FromMinorUnits(d.AmountMinorUnits),
             Currency = (Currency)d.Currency,
             Type = (TransactionType)d.Type,
             Status = (TransactionStatus)d.Status,
@@ -157,7 +158,7 @@ namespace FinTechAPI.Infrastructure.Services
         private static TransactionDocument ToDocument(Transaction t) => new()
         {
             Id = t.Id,
-            Amount = (double)t.Amount,
+            AmountMinorUnits = AmountConverter.ToMinorUnits(t.Amount),
             Currency = (int)t.Currency,
             Type = (int)t.Type,
             Status = (int)t.Status,

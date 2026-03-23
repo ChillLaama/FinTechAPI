@@ -8,8 +8,8 @@ namespace FinTechAPI.Infrastructure.Firebase.Documents
         [FirestoreDocumentId]
         public string Id { get; set; } = string.Empty;
 
-        [FirestoreProperty("amount")]
-        public double Amount { get; set; }
+        [FirestoreProperty("amountMinorUnits")]
+        public long AmountMinorUnits { get; set; }
 
         [FirestoreProperty("currency")]
         public int Currency { get; set; }

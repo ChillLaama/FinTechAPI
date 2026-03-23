@@ -16,8 +16,8 @@ export function TermsOfService() {
 
       <div className="prose prose-sm text-muted-foreground space-y-4">
         <p>
-          These Terms of Service govern your use of the FinanceHub platform.
-          By creating an account, you agree to these terms.
+          These Terms of Service govern your use of the FinanceHub platform. By
+          creating an account, you agree to these terms.
         </p>
 
         <h2 className="text-lg text-foreground">1. Account Responsibilities</h2>
@@ -42,9 +42,9 @@ export function TermsOfService() {
 
         <h2 className="text-lg text-foreground">4. Limitation of Liability</h2>
         <p>
-          FinanceHub is provided &quot;as is&quot; without warranty of any
-          kind. We are not liable for any indirect, incidental, or
-          consequential damages.
+          FinanceHub is provided &quot;as is&quot; without warranty of any kind.
+          We are not liable for any indirect, incidental, or consequential
+          damages.
         </p>
 
         <p className="text-xs text-muted-foreground/60">

@@ -1,4 +1,5 @@
 using FinTechAPI.Application.Interfaces;
+using FinTechAPI.Application.Utilities;
 using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Firebase.Documents;
 using Google.Cloud.Firestore;
@@ -50,7 +51,7 @@ namespace FinTechAPI.Infrastructure.Services
         private static Transaction ToTransaction(TransactionDocument d) => new()
         {
             Id = d.Id,
-            Amount = (decimal)d.Amount,
+            Amount = AmountConverter.FromMinorUnits(d.AmountMinorUnits),
             Currency = (Currency)d.Currency,
             Type = (TransactionType)d.Type,
             Status = (TransactionStatus)d.Status,

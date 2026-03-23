@@ -120,13 +120,13 @@ namespace FinTechAPI.API.Controllers
             for (int i = 0; i < count; i++)
             {
                 var isIncome = rng.Next(2) == 0;
-                double amount = Math.Round(rng.NextDouble() * 490 + 10, 2); // 10–500
+                long amountMinorUnits = rng.Next(1000, 50000); // 10.00–500.00 in cents
                 var txnRef = _firestore.Transactions.Document();
 
                 var txnDoc = new TransactionDocument
                 {
                     Id = txnRef.Id,
-                    Amount = amount,
+                    AmountMinorUnits = amountMinorUnits,
                     Currency = accountDoc.Currency,
                     Type = isIncome ? (int)TransactionType.Income : (int)TransactionType.Expense,
                     Description = categories[rng.Next(categories.Length)],
@@ -138,7 +138,7 @@ namespace FinTechAPI.API.Controllers
                 };
 
                 batch.Set(txnRef, txnDoc);
-                balanceDelta += isIncome ? amount : -amount;
+                balanceDelta += isIncome ? amountMinorUnits / 100.0 : -amountMinorUnits / 100.0;
             }
 
             // Update account balance

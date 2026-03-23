@@ -35,16 +35,16 @@ export function PrivacyPolicy() {
 
         <h2 className="text-lg text-foreground">3. Data Storage</h2>
         <p>
-          Data is stored securely in Google Cloud Firestore with
-          encryption at rest. Payment data is processed by Stripe and is
-          not stored on our servers.
+          Data is stored securely in Google Cloud Firestore with encryption at
+          rest. Payment data is processed by Stripe and is not stored on our
+          servers.
         </p>
 
         <h2 className="text-lg text-foreground">4. Your Rights</h2>
         <p>
-          You may request access to, correction of, or deletion of your
-          personal data at any time by contacting support or through your
-          account settings.
+          You may request access to, correction of, or deletion of your personal
+          data at any time by contacting support or through your account
+          settings.
         </p>
 
         <p className="text-xs text-muted-foreground/60">
