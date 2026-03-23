@@ -192,5 +192,59 @@ namespace FinTechAPI.Tests.Controllers
             Assert.Equal("payment_intent.succeeded", response.WebhookEvent);
             Assert.Equal("evt_123", response.CorrelationId);
         }
+
+        // ── Negative scenarios ─────────────────────────────────────────────
+
+        [Fact]
+        public async Task UpdateTransaction_ShouldReturnNotFound_WhenMissing()
+        {
+            var dto = new CreateTransactionDto
+            {
+                Amount = 100,
+                AccountId = "acc-1",
+                Type = TransactionType.Expense,
+                Currency = Currency.USD,
+                TransactionDate = DateTime.UtcNow,
+                Category = "Test"
+            };
+            _mockService
+                .Setup(s => s.UpdateTransactionAsync("tx-x", It.IsAny<Transaction>(), UserId))
+                .ReturnsAsync((Transaction)null!);
+
+            var result = await _controller.UpdateTransaction("tx-x", dto);
+
+            Assert.IsType<NotFoundResult>(result);
+        }
+
+        [Fact]
+        public async Task UpdateTransactionStatus_ShouldReturnNotFound_WhenMissing()
+        {
+            _mockService
+                .Setup(s => s.UpdateTransactionStatusAsync("tx-x", TransactionStatus.Failed, UserId))
+                .ReturnsAsync((Transaction)null!);
+
+            var result = await _controller.UpdateTransactionStatus(
+                "tx-x",
+                new UpdateTransactionStatusDto { Status = TransactionStatus.Failed });
+
+            Assert.IsType<NotFoundResult>(result.Result);
+        }
+
+        [Fact]
+        public async Task GetByAccount_ShouldReturnOk_WithEmptyList()
+        {
+            _mockService
+                .Setup(s => s.GetTransactionsByAccountIdAsync("acc-empty", UserId))
+                .ReturnsAsync(Array.Empty<Transaction>());
+            _mockMapper
+                .Setup(m => m.Map<IEnumerable<TransactionDto>>(It.IsAny<IEnumerable<Transaction>>()))
+                .Returns(Array.Empty<TransactionDto>());
+            _mockPaymentService.Setup(s => s.GetPaymentsByUserIdAsync(UserId)).ReturnsAsync(Array.Empty<PaymentDto>());
+
+            var result = await _controller.GetByAccount("acc-empty");
+
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.Empty((IEnumerable<TransactionDto>)ok.Value!);
+        }
     }
 }

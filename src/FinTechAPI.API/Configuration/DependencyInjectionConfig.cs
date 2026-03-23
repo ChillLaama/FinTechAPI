@@ -106,6 +106,9 @@ public static class DependencyInjectionConfig
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IAuditService, AuditService>();
 
+        // ── Background services ─────────────────────────────────────────
+        services.AddHostedService<ReconciliationBackgroundService>();
+
         // ── Authentication / Authorisation ───────────────────────────────
         services.AddAuthentication("Firebase")
             .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>("Firebase", null);

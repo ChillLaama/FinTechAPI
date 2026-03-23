@@ -77,6 +77,12 @@ namespace FinTechAPI.Application.DTOs
         public string OobCode { get; set; } = string.Empty;
     }
 
+    public class RefreshTokenDto
+    {
+        [Required]
+        public string RefreshToken { get; set; } = string.Empty;
+    }
+
     public class AuthOperationResultDto
     {
         public bool Success { get; set; }

@@ -73,7 +73,9 @@ export function AccountsProfiles() {
       setFormName("");
       setShowForm(false);
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Failed to create account");
+      setCreateError(
+        err instanceof Error ? err.message : "Failed to create account",
+      );
     } finally {
       setCreating(false);
     }
@@ -109,7 +111,11 @@ export function AccountsProfiles() {
             stored here.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setShowForm((v) => !v)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowForm((v) => !v)}
+        >
           <Plus className="w-4 h-4 mr-1" />
           New account
         </Button>
@@ -145,7 +151,9 @@ export function AccountsProfiles() {
                 onChange={(e) => setFormType(Number(e.target.value))}
               >
                 {Object.entries(accountTypeLabels).map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
+                  <option key={val} value={val}>
+                    {label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -158,17 +166,25 @@ export function AccountsProfiles() {
                 onChange={(e) => setFormCurrency(Number(e.target.value))}
               >
                 {Object.entries(currencyLabels).map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
+                  <option key={val} value={val}>
+                    {label}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
           <div className="flex gap-2">
             <Button type="submit" disabled={creating || !formName.trim()}>
-              {creating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              {creating ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : null}
               Create
             </Button>
-            <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowForm(false)}
+            >
               Cancel
             </Button>
           </div>

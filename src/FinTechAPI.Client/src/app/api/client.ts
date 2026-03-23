@@ -198,12 +198,59 @@ function getStoredToken(): string | null {
   return localStorage.getItem("fintech_token") || localStorage.getItem("token");
 }
 
+function getStoredRefreshToken(): string | null {
+  return localStorage.getItem("fintech_refresh_token");
+}
+
+function storeTokens(token: string, refreshToken?: string) {
+  localStorage.setItem("fintech_token", token);
+  if (refreshToken) {
+    localStorage.setItem("fintech_refresh_token", refreshToken);
+  }
+}
+
+function clearTokens() {
+  localStorage.removeItem("fintech_token");
+  localStorage.removeItem("fintech_refresh_token");
+  localStorage.removeItem("token");
+}
+
 function buildUrl(path: string): string {
   if (API_BASE_URL) {
     return `${API_BASE_URL}${path}`;
   }
 
   return path;
+}
+
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefreshToken(): Promise<boolean> {
+  const rt = getStoredRefreshToken();
+  if (!rt) return false;
+
+  try {
+    const response = await fetch(buildUrl("/api/auth/refresh"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ refreshToken: rt }),
+    });
+
+    if (!response.ok) return false;
+
+    const data = (await response.json()) as AuthResponse & {
+      refreshToken?: string;
+    };
+    if (data.token) {
+      storeTokens(data.token, data.refreshToken);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -223,6 +270,44 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: "include",
     headers,
   });
+
+  // Auto-refresh on 401 (skip for auth endpoints to avoid loops)
+  if (response.status === 401 && !path.startsWith("/api/auth/")) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = tryRefreshToken().finally(() => {
+        isRefreshing = false;
+        refreshPromise = null;
+      });
+    }
+
+    const refreshed = await (refreshPromise ?? Promise.resolve(false));
+    if (refreshed) {
+      // Retry with new token
+      const retryHeaders = new Headers(init?.headers);
+      if (!retryHeaders.has("Content-Type") && init?.body) {
+        retryHeaders.set("Content-Type", "application/json");
+      }
+      const newToken = getStoredToken();
+      if (newToken) {
+        retryHeaders.set("Authorization", `Bearer ${newToken}`);
+      }
+
+      const retryResponse = await fetch(buildUrl(path), {
+        ...init,
+        credentials: "include",
+        headers: retryHeaders,
+      });
+
+      if (retryResponse.ok) {
+        if (retryResponse.status === 204) return undefined as T;
+        return (await retryResponse.json()) as T;
+      }
+    }
+
+    // Refresh failed — clear tokens
+    clearTokens();
+  }
 
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}`;
@@ -290,7 +375,7 @@ export async function login(email: string, password: string) {
   });
 
   if (response.token) {
-    localStorage.setItem("fintech_token", response.token);
+    storeTokens(response.token, response.refreshToken);
   }
 
   return response;
@@ -366,8 +451,7 @@ export function updateUserSettingsPolicy(
 }
 
 export function logout() {
-  localStorage.removeItem("fintech_token");
-  localStorage.removeItem("token");
+  clearTokens();
 }
 
 export function getAccounts() {

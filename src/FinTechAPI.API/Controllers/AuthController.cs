@@ -57,6 +57,24 @@ namespace FinTechAPI.API.Controllers
             return Ok(authResponse);
         }
 
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken(RefreshTokenDto dto)
+        {
+            var authResponse = await _authService.RefreshTokenAsync(dto.RefreshToken);
+            if (!authResponse.Success)
+                return Unauthorized(new { message = authResponse.ErrorMessage ?? "Token refresh failed." });
+
+            Response.Cookies.Append("Authorization", authResponse.Token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = authResponse.Expiration
+            });
+
+            return Ok(authResponse);
+        }
+
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordDto dto)
         {

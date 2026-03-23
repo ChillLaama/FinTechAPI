@@ -88,5 +88,20 @@ namespace FinTechAPI.Tests.Controllers
             var ok = Assert.IsType<OkObjectResult>(result.Result);
             Assert.Equal(dto, ok.Value);
         }
+
+        // ── Negative scenarios ─────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetBalance_ShouldReturn502_WhenProviderFails()
+        {
+            _mockBalanceService
+                .Setup(s => s.GetPlatformBalanceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new PaymentProviderException("Stripe API error.", "api_error"));
+
+            var result = await _controller.GetBalance();
+
+            var objectResult = Assert.IsType<ObjectResult>(result.Result);
+            Assert.Equal(502, objectResult.StatusCode);
+        }
     }
 }

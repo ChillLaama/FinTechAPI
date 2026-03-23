@@ -24,7 +24,10 @@ export function Login() {
       await login(email, password);
       navigate("/");
     } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : "Authorization failed";
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : "Authorization failed";
       setError(message);
     } finally {
       setIsLoading(false);
@@ -108,11 +111,7 @@ export function Login() {
           </div>
         </div>
 
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isLoading}
-        >
+        <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? "Signing in..." : "Sign in"}
         </Button>
       </form>
@@ -123,9 +122,7 @@ export function Login() {
           <div className="w-full border-t border-border"></div>
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="bg-background px-4 text-muted-foreground">
-            Or
-          </span>
+          <span className="bg-background px-4 text-muted-foreground">Or</span>
         </div>
       </div>
 

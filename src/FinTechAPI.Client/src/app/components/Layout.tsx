@@ -20,7 +20,8 @@ export function Layout() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const initials = user
-    ? `${(user.firstName?.[0] ?? "").toUpperCase()}${(user.lastName?.[0] ?? "").toUpperCase()}` || "?"
+    ? `${(user.firstName?.[0] ?? "").toUpperCase()}${(user.lastName?.[0] ?? "").toUpperCase()}` ||
+      "?"
     : "?";
   const displayName = user
     ? `${user.firstName} ${user.lastName}`.trim() || user.email
@@ -109,7 +110,9 @@ export function Layout() {
                 className="flex items-center gap-3 hover:opacity-80 transition-opacity"
               >
                 <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-sm text-primary-foreground">{initials}</span>
+                  <span className="text-sm text-primary-foreground">
+                    {initials}
+                  </span>
                 </div>
               </button>
 
@@ -121,9 +124,7 @@ export function Layout() {
                   />
                   <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-lg shadow-lg z-20 overflow-hidden">
                     <div className="p-3 border-b border-border">
-                      <p className="text-sm text-foreground">
-                        {displayName}
-                      </p>
+                      <p className="text-sm text-foreground">{displayName}</p>
                       <p className="text-xs text-muted-foreground">
                         {displayEmail}
                       </p>

@@ -150,6 +150,66 @@ namespace FinTechAPI.Infrastructure.Services
             }
         }
 
+        public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
+        {
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                var url = $"https://securetoken.googleapis.com/v1/token?key={_settings.WebApiKey}";
+
+                var payload = new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["grant_type"] = "refresh_token",
+                    ["refresh_token"] = refreshToken
+                });
+
+                var response = await client.PostAsync(url, payload);
+                if (!response.IsSuccessStatusCode)
+                    return new AuthResponseDto { Success = false, ErrorMessage = "Token refresh failed." };
+
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                var newIdToken = root.GetProperty("id_token").GetString()!;
+                var newRefreshToken = root.GetProperty("refresh_token").GetString()!;
+                var expiresIn = int.Parse(root.GetProperty("expires_in").GetString()!);
+                var uid = root.GetProperty("user_id").GetString()!;
+
+                var userSnap = await _firestore.Users.Document(uid).GetSnapshotAsync();
+                UserDto userDto;
+
+                if (userSnap.Exists)
+                {
+                    var userDoc = userSnap.ConvertTo<UserDocument>();
+                    userDto = new UserDto
+                    {
+                        Id = uid,
+                        Email = userDoc.Email,
+                        FirstName = userDoc.FirstName,
+                        LastName = userDoc.LastName
+                    };
+                }
+                else
+                {
+                    userDto = new UserDto { Id = uid, Email = "" };
+                }
+
+                return new AuthResponseDto
+                {
+                    Success = true,
+                    Token = newIdToken,
+                    RefreshToken = newRefreshToken,
+                    Expiration = DateTime.UtcNow.AddSeconds(expiresIn),
+                    User = userDto
+                };
+            }
+            catch (Exception ex)
+            {
+                return new AuthResponseDto { Success = false, ErrorMessage = ex.Message };
+            }
+        }
+
         public async Task<AuthOperationResultDto> SendPasswordResetEmailAsync(ForgotPasswordDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Email))

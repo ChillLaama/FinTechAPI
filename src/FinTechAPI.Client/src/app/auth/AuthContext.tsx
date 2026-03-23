@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { useNavigate } from "react-router";
 import {
   login as apiLogin,
@@ -19,7 +26,9 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null);
 
 function hasStoredToken(): boolean {
-  return !!(localStorage.getItem("fintech_token") || localStorage.getItem("token"));
+  return !!(
+    localStorage.getItem("fintech_token") || localStorage.getItem("token")
+  );
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

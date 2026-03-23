@@ -16,6 +16,9 @@ import { Register } from "./components/Register";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { VerifyEmail } from "./components/VerifyEmail";
 import { ResetPassword } from "./components/ResetPassword";
+import { TermsOfService } from "./components/TermsOfService";
+import { PrivacyPolicy } from "./components/PrivacyPolicy";
+import { Help } from "./components/Help";
 
 export const router = createBrowserRouter([
   {
@@ -49,6 +52,9 @@ export const router = createBrowserRouter([
           { path: "forgot-password", Component: ForgotPassword },
           { path: "verify-email", Component: VerifyEmail },
           { path: "reset-password", Component: ResetPassword },
+          { path: "terms", Component: TermsOfService },
+          { path: "privacy", Component: PrivacyPolicy },
+          { path: "help", Component: Help },
         ],
       },
     ],
