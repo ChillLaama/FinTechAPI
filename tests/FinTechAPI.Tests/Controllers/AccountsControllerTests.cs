@@ -12,16 +12,16 @@ namespace FinTechAPI.Tests.Controllers
     public class AccountsControllerTests
     {
         private readonly Mock<IAccountService> _mockAccountService;
-        private readonly Mock<IMapper>         _mockMapper;
-        private readonly AccountsController    _controller;
+        private readonly Mock<IMapper> _mockMapper;
+        private readonly AccountsController _controller;
 
-        private const string TestUserId    = "firebase-uid-test";
+        private const string TestUserId = "firebase-uid-test";
         private const string TestUserEmail = "test@example.com";
 
         public AccountsControllerTests()
         {
             _mockAccountService = new Mock<IAccountService>();
-            _mockMapper         = new Mock<IMapper>();
+            _mockMapper = new Mock<IMapper>();
 
             _controller = new AccountsController(_mockAccountService.Object, _mockMapper.Object);
             _controller.ControllerContext = new ControllerContext
@@ -50,7 +50,7 @@ namespace FinTechAPI.Tests.Controllers
         public async Task GetAccount_ShouldReturnOk_WhenAccountExists()
         {
             const string accountId = "acc-123";
-            var account    = new Account { Id = accountId, Name = "Test", UserId = TestUserId };
+            var account = new Account { Id = accountId, Name = "Test", UserId = TestUserId };
             var accountDto = new AccountDto { Id = accountId, Name = "Test", Balance = 0 };
 
             _mockAccountService.Setup(s => s.GetAccountByIdAsync(accountId, TestUserId)).ReturnsAsync(account);
@@ -75,7 +75,7 @@ namespace FinTechAPI.Tests.Controllers
         [Fact]
         public async Task CreateAccount_ShouldReturnCreatedAtAction()
         {
-            var newAccount     = new Account { Name = "New", AccountType = AccountType.Savings, Currency = Currency.EUR };
+            var newAccount = new Account { Name = "New", AccountType = AccountType.Savings, Currency = Currency.EUR };
             var createdAccount = new Account { Id = "new-id", Name = "New", UserId = TestUserId };
 
             _mockAccountService.Setup(s => s.CreateAccountAsync(It.IsAny<Account>(), TestUserId)).ReturnsAsync(createdAccount);
@@ -89,8 +89,8 @@ namespace FinTechAPI.Tests.Controllers
         [Fact]
         public async Task UpdateAccount_ShouldReturnNoContent_WhenSuccessful()
         {
-            const string accountId    = "acc-1";
-            var updated               = new Account { Id = accountId, Name = "Updated", UserId = TestUserId };
+            const string accountId = "acc-1";
+            var updated = new Account { Id = accountId, Name = "Updated", UserId = TestUserId };
             _mockAccountService.Setup(s => s.UpdateAccountAsync(accountId, It.IsAny<Account>(), TestUserId)).ReturnsAsync(updated);
 
             var result = await _controller.UpdateAccount(accountId, new Account());

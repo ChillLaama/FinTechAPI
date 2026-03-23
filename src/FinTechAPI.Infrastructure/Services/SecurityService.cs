@@ -31,16 +31,16 @@ namespace FinTechAPI.Infrastructure.Services
                 var d = doc.ConvertTo<TransactionDocument>();
                 return new Transaction
                 {
-                    Id              = d.Id,
-                    Amount          = AmountConverter.FromMinorUnits(d.AmountMinorUnits),
-                    Currency        = (Currency)d.Currency,
-                    Type            = (TransactionType)d.Type,
-                    Description     = d.Description,
+                    Id = d.Id,
+                    Amount = AmountConverter.FromMinorUnits(d.AmountMinorUnits),
+                    Currency = (Currency)d.Currency,
+                    Type = (TransactionType)d.Type,
+                    Description = d.Description,
                     TransactionDate = d.TransactionDate.ToDateTime(),
-                    AccountId       = d.AccountId,
-                    UserId          = d.UserId,
-                    CreatedAt       = d.CreatedAt.ToDateTime(),
-                    UpdatedAt       = d.UpdatedAt.ToDateTime()
+                    AccountId = d.AccountId,
+                    UserId = d.UserId,
+                    CreatedAt = d.CreatedAt.ToDateTime(),
+                    UpdatedAt = d.UpdatedAt.ToDateTime()
                 };
             });
         }

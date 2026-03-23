@@ -105,6 +105,8 @@ public static class DependencyInjectionConfig
         services.AddScoped<ISecurityService, SecurityService>();
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<IFraudService, FraudRuleEngine>();
+        services.AddScoped<IFraudCaseService, FraudCaseService>();
 
         // ── Background services ─────────────────────────────────────────
         services.AddHostedService<ReconciliationBackgroundService>();

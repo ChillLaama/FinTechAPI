@@ -9,5 +9,8 @@ namespace FinTechAPI.Application.DTOs
         public decimal Amount { get; set; }
         public string Currency { get; set; } = string.Empty;
         public string? TransactionId { get; set; }
+        public string? FraudDecision { get; set; }
+        public int? FraudScore { get; set; }
+        public string? FraudEvaluationId { get; set; }
     }
 }

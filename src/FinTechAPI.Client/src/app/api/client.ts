@@ -43,6 +43,9 @@ export interface ApiPaymentIntentResponse {
   amount: number;
   currency: string;
   transactionId?: string | null;
+  fraudDecision?: string | null;
+  fraudScore?: number | null;
+  fraudEvaluationId?: string | null;
 }
 
 export interface ApiPayment {
@@ -586,4 +589,115 @@ export async function measureApiLatency(): Promise<number> {
   const start = performance.now();
   await apiRequest<{ status: string }>("/api/test/status");
   return performance.now() - start;
+}
+
+// ── Fraud types ─────────────────────────────────────────────
+
+export interface ApiFraudEvaluation {
+  id: string;
+  userId: string;
+  paymentId?: string | null;
+  transactionId?: string | null;
+  fraudScore: number;
+  riskLevel: string;
+  decision: string;
+  reasons: string[];
+  rulesTriggered: string[];
+  rulesVersion: string;
+  amountMinorUnits: number;
+  currency: string;
+  createdAt: string;
+}
+
+export interface ApiFraudCase {
+  id: string;
+  evaluationId: string;
+  userId: string;
+  paymentId?: string | null;
+  status: string;
+  riskLevel: string;
+  fraudScore: number;
+  amountMinorUnits: number;
+  currency: string;
+  assignee?: string | null;
+  reasons: string[];
+  rulesTriggered: string[];
+  analystNotes?: string | null;
+  resolvedBy?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiFraudCasePage {
+  items: ApiFraudCase[];
+  totalCount: number;
+}
+
+// ── Fraud API methods ───────────────────────────────────────
+
+export function getFraudCases(params?: {
+  status?: string;
+  limit?: number;
+  startAfter?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.startAfter) query.set("startAfter", params.startAfter);
+
+  const qs = query.toString();
+  return apiRequest<ApiFraudCasePage>(
+    `/api/fraud-cases${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export function getFraudCaseById(caseId: string) {
+  return apiRequest<ApiFraudCase>(`/api/fraud-cases/${encodeURIComponent(caseId)}`);
+}
+
+export function getFraudCaseEvaluation(caseId: string) {
+  return apiRequest<ApiFraudEvaluation>(
+    `/api/fraud-cases/${encodeURIComponent(caseId)}/evaluation`,
+  );
+}
+
+export function approveFraudCase(caseId: string, analystNotes?: string) {
+  return apiRequest<ApiFraudCase>(
+    `/api/fraud-cases/${encodeURIComponent(caseId)}/approve`,
+    {
+      method: "POST",
+      body: JSON.stringify({ analystNotes: analystNotes ?? null }),
+    },
+  );
+}
+
+export function rejectFraudCase(caseId: string, analystNotes?: string) {
+  return apiRequest<ApiFraudCase>(
+    `/api/fraud-cases/${encodeURIComponent(caseId)}/reject`,
+    {
+      method: "POST",
+      body: JSON.stringify({ analystNotes: analystNotes ?? null }),
+    },
+  );
+}
+
+export function escalateFraudCase(caseId: string, analystNotes?: string) {
+  return apiRequest<ApiFraudCase>(
+    `/api/fraud-cases/${encodeURIComponent(caseId)}/escalate`,
+    {
+      method: "POST",
+      body: JSON.stringify({ analystNotes: analystNotes ?? null }),
+    },
+  );
+}
+
+export function assignFraudCase(caseId: string, assignee: string) {
+  return apiRequest<ApiFraudCase>(
+    `/api/fraud-cases/${encodeURIComponent(caseId)}/assign`,
+    {
+      method: "POST",
+      body: JSON.stringify({ assignee }),
+    },
+  );
 }

@@ -18,6 +18,8 @@ namespace FinTechAPI.Infrastructure.Services
         private readonly StripeSettings _settings;
         private readonly IStripePaymentIntentService _stripeService;
         private readonly ITransactionService _transactionService;
+        private readonly IFraudService _fraudService;
+        private readonly IFraudCaseService _fraudCaseService;
         private readonly ILogger<PaymentService> _logger;
 
         // Defines the forward-moving lifecycle order. Terminal statuses share the
@@ -42,12 +44,16 @@ namespace FinTechAPI.Infrastructure.Services
             IOptions<StripeSettings> settings,
             IStripePaymentIntentService stripeService,
             ITransactionService transactionService,
+            IFraudService fraudService,
+            IFraudCaseService fraudCaseService,
             ILogger<PaymentService> logger)
         {
             _firestore = firestore;
             _settings = settings.Value;
             _stripeService = stripeService;
             _transactionService = transactionService;
+            _fraudService = fraudService;
+            _fraudCaseService = fraudCaseService;
             _logger = logger;
         }
 
@@ -63,6 +69,30 @@ namespace FinTechAPI.Infrastructure.Services
                 amountMinorUnits,
                 normalizedCurrency,
                 idempotencyKey);
+
+            // ── Fraud pre-check ──────────────────────────────────────────
+            var fraudResult = await _fraudService.EvaluateAsync(
+                userId, amountMinorUnits, normalizedCurrency,
+                paymentId: null, transactionId: dto.TransactionId);
+
+            if (string.Equals(fraudResult.Decision, "Block", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(
+                    "Payment blocked by fraud check. UserId={UserId}, FraudScore={FraudScore}, EvaluationId={EvaluationId}",
+                    userId, fraudResult.FraudScore, fraudResult.EvaluationId);
+
+                throw new PaymentProviderException(
+                    "Payment blocked by fraud detection. Please contact support.");
+            }
+
+            if (string.Equals(fraudResult.Decision, "Review", StringComparison.OrdinalIgnoreCase))
+            {
+                await _fraudCaseService.CreateCaseAsync(
+                    fraudResult.EvaluationId, userId, null,
+                    fraudResult.RiskLevel, fraudResult.FraudScore,
+                    amountMinorUnits, normalizedCurrency,
+                    fraudResult.Reasons, fraudResult.RulesTriggered);
+            }
 
             var createOptions = new PaymentIntentCreateOptions
             {
@@ -136,6 +166,9 @@ namespace FinTechAPI.Infrastructure.Services
                 Amount = dto.Amount,
                 Currency = normalizedCurrency,
                 TransactionId = dto.TransactionId,
+                FraudDecision = fraudResult.Decision,
+                FraudScore = fraudResult.FraudScore,
+                FraudEvaluationId = fraudResult.EvaluationId,
             };
         }
 
