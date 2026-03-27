@@ -35,6 +35,8 @@ interface PaymentResult {
   stripePaymentIntentId?: string;
   idempotencyKey?: string;
   providerStatus?: string;
+  fraudDecision?: string | null;
+  fraudScore?: number | null;
   message: string;
 }
 
@@ -46,6 +48,8 @@ interface CheckoutState {
   idempotencyKey: string;
   amount: number;
   currency: string;
+  fraudDecision?: string | null;
+  fraudScore?: number | null;
 }
 
 interface CheckoutFormProps {
@@ -240,6 +244,8 @@ export function CreatePayment() {
         idempotencyKey,
         amount: amountValue,
         currency: formData.currency,
+        fraudDecision: paymentIntent.fraudDecision,
+        fraudScore: paymentIntent.fraudScore,
       });
       setStep("checkout");
     } catch (requestError) {
@@ -287,6 +293,8 @@ export function CreatePayment() {
       stripePaymentIntentId: checkoutState.stripePaymentIntentId,
       idempotencyKey: checkoutState.idempotencyKey,
       providerStatus: syncedStatus,
+      fraudDecision: checkoutState.fraudDecision,
+      fraudScore: checkoutState.fraudScore,
       message:
         syncedStatus === "succeeded"
           ? "Card payment completed successfully."
@@ -523,6 +531,19 @@ export function CreatePayment() {
             </div>
           </div>
 
+          {checkoutState.fraudDecision?.toLowerCase() === "review" && (
+            <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-yellow-600">Under review</p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  This payment has been flagged for manual review (score: {checkoutState.fraudScore ?? "N/A"}).
+                  You may proceed, but the transaction may be held for additional verification.
+                </p>
+              </div>
+            </div>
+          )}
+
           {!stripePromise && (
             <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
@@ -602,6 +623,18 @@ export function CreatePayment() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Provider status</span>
                     <span className="text-sm">{result.providerStatus}</span>
+                  </div>
+                )}
+                {result.fraudDecision && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Fraud check</span>
+                    <span className={`text-sm font-medium ${
+                      result.fraudDecision.toLowerCase() === "allow" ? "text-green-500" :
+                      result.fraudDecision.toLowerCase() === "review" ? "text-yellow-500" :
+                      "text-destructive"
+                    }`}>
+                      {result.fraudDecision} {result.fraudScore != null && `(${result.fraudScore})`}
+                    </span>
                   </div>
                 )}
                 {result.idempotencyKey && (

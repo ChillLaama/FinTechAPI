@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FirebaseAdmin.Auth;
 using FinTechAPI.Application.DTOs;
 using FinTechAPI.Application.Interfaces;
 using FinTechAPI.Domain.Models;
@@ -228,8 +229,48 @@ namespace FinTechAPI.API.Controllers
                 auth.Expiration
             });
         }
+
+        /// <summary>
+        /// Dev-only: assign a Firebase custom claim role to any user.
+        /// POST /api/dev/users/{uid}/role  { "role": "admin" }
+        /// User must re-login after this call for the new claim to take effect.
+        /// </summary>
+        [HttpPost("users/{uid}/role")]
+        public async Task<IActionResult> SetUserRoleDev(string uid, [FromBody] SetDevRoleDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(uid))
+                return BadRequest(new { message = "uid is required." });
+
+            if (string.IsNullOrWhiteSpace(dto.Role))
+                return BadRequest(new { message = "Role is required." });
+
+            var role = dto.Role.Trim().ToLowerInvariant();
+
+            var allowed = new HashSet<string> { "admin", "analyst", "user" };
+            if (!allowed.Contains(role))
+                return BadRequest(new { message = $"Unsupported role '{role}'. Allowed: {string.Join(", ", allowed)}" });
+
+            try
+            {
+                await FirebaseAuth.DefaultInstance.SetCustomUserClaimsAsync(
+                    uid,
+                    new Dictionary<string, object> { ["role"] = role });
+            }
+            catch (FirebaseAuthException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
+            return Ok(new
+            {
+                uid,
+                role,
+                message = "Role assigned. User must re-login to get an updated ID token."
+            });
+        }
     }
 
     public record AmountDto(decimal Amount);
     public record QuickRegisterDto(string? Email, string? Password, string? FirstName, string? LastName);
+    public record SetDevRoleDto(string Role);
 }

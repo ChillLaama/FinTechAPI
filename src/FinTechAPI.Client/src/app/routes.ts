@@ -19,6 +19,9 @@ import { ResetPassword } from "./components/ResetPassword";
 import { TermsOfService } from "./components/TermsOfService";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { Help } from "./components/Help";
+import { FraudCases } from "./components/FraudCases";
+import { FraudCaseDetails } from "./components/FraudCaseDetails";
+import { FraudDashboard } from "./components/FraudDashboard";
 
 export const router = createBrowserRouter([
   {
@@ -39,6 +42,9 @@ export const router = createBrowserRouter([
               { path: "accounts", Component: AccountsProfiles },
               { path: "profile", Component: Profile },
               { path: "settings", Component: Settings },
+              { path: "fraud-cases", Component: FraudCases },
+              { path: "fraud-cases/:caseId", Component: FraudCaseDetails },
+              { path: "fraud-dashboard", Component: FraudDashboard },
             ],
           },
         ],

@@ -647,13 +647,13 @@ export function getFraudCases(params?: {
   if (params?.startAfter) query.set("startAfter", params.startAfter);
 
   const qs = query.toString();
-  return apiRequest<ApiFraudCasePage>(
-    `/api/fraud-cases${qs ? `?${qs}` : ""}`,
-  );
+  return apiRequest<ApiFraudCasePage>(`/api/fraud-cases${qs ? `?${qs}` : ""}`);
 }
 
 export function getFraudCaseById(caseId: string) {
-  return apiRequest<ApiFraudCase>(`/api/fraud-cases/${encodeURIComponent(caseId)}`);
+  return apiRequest<ApiFraudCase>(
+    `/api/fraud-cases/${encodeURIComponent(caseId)}`,
+  );
 }
 
 export function getFraudCaseEvaluation(caseId: string) {

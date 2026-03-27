@@ -10,6 +10,8 @@ import {
   Bell,
   User,
   LogOut,
+  Shield,
+  BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
@@ -34,6 +36,8 @@ export function Layout() {
     { path: "/create-payment", label: "Create payment", icon: PlusCircle },
     { path: "/payouts", label: "Payouts", icon: Wallet },
     { path: "/accounts", label: "Account profiles", icon: FolderOpen },
+    { path: "/fraud-cases", label: "Fraud cases", icon: Shield },
+    { path: "/fraud-dashboard", label: "Fraud monitoring", icon: BarChart3 },
   ];
 
   return (
