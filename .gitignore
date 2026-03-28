@@ -16,3 +16,5 @@ src/FinTechAPI.API/appsettings_Dev.json
 /FinTechAPI/
 /FinTechAPI_Tests/
 
+src/FinTechAPI.API/appsettings.Development.json
+.gitignore
