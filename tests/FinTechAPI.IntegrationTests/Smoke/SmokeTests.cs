@@ -24,8 +24,8 @@ public sealed class SmokeTests
     {
         _factory = factory;
         _factory.ResetMocks();
-        _anon  = factory.CreateClient();
-        _user  = factory.CreateClient().AsUser();
+        _anon = factory.CreateClient();
+        _user = factory.CreateClient().AsUser();
         _admin = factory.CreateClient().AsAdmin();
     }
 
