@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   DollarSign,
@@ -61,7 +66,9 @@ interface CheckoutFormProps {
 const stripePublishableKey =
   (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined)?.trim() ??
   "";
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+const stripePromise = stripePublishableKey
+  ? loadStripe(stripePublishableKey)
+  : null;
 
 function formatMoney(amount: number, currencyCode: string): string {
   return `${currencyCode} ${amount.toLocaleString("en-US", {
@@ -153,7 +160,9 @@ export function CreatePayment() {
   const [result, setResult] = useState<PaymentResult | null>(null);
   const [accounts, setAccounts] = useState<ApiAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
-  const [checkoutState, setCheckoutState] = useState<CheckoutState | null>(null);
+  const [checkoutState, setCheckoutState] = useState<CheckoutState | null>(
+    null,
+  );
 
   const [formData, setFormData] = useState({
     amount: "",
@@ -381,7 +390,8 @@ export function CreatePayment() {
         <div>
           <h1 className="text-3xl mb-2">Create payment</h1>
           <p className="text-muted-foreground">
-            Create a payment request, confirm card details, and track provider reconciliation
+            Create a payment request, confirm card details, and track provider
+            reconciliation
           </p>
         </div>
       </div>
@@ -510,7 +520,8 @@ export function CreatePayment() {
           <div className="space-y-2">
             <h2 className="text-2xl">Card checkout</h2>
             <p className="text-muted-foreground">
-              Confirm payment for {formatMoney(checkoutState.amount, checkoutState.currency)}.
+              Confirm payment for{" "}
+              {formatMoney(checkoutState.amount, checkoutState.currency)}.
             </p>
           </div>
 
@@ -537,8 +548,9 @@ export function CreatePayment() {
               <div className="text-sm">
                 <p className="font-medium text-yellow-600">Under review</p>
                 <p className="text-muted-foreground text-xs mt-1">
-                  This payment has been flagged for manual review (score: {checkoutState.fraudScore ?? "N/A"}).
-                  You may proceed, but the transaction may be held for additional verification.
+                  This payment has been flagged for manual review (score:{" "}
+                  {checkoutState.fraudScore ?? "N/A"}). You may proceed, but the
+                  transaction may be held for additional verification.
                 </p>
               </div>
             </div>
@@ -548,7 +560,8 @@ export function CreatePayment() {
             <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                Missing VITE_STRIPE_PUBLISHABLE_KEY. Configure it to enable card checkout.
+                Missing VITE_STRIPE_PUBLISHABLE_KEY. Configure it to enable card
+                checkout.
               </p>
             </div>
           )}
@@ -603,43 +616,66 @@ export function CreatePayment() {
               <div className="bg-secondary/30 p-4 rounded-lg space-y-3 text-left">
                 {result.transaction && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Transaction ID</span>
-                    <code className="text-sm font-mono">#{result.transaction.id}</code>
+                    <span className="text-sm text-muted-foreground">
+                      Transaction ID
+                    </span>
+                    <code className="text-sm font-mono">
+                      #{result.transaction.id}
+                    </code>
                   </div>
                 )}
                 {result.paymentId && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Payment ID</span>
-                    <code className="text-sm font-mono">{result.paymentId}</code>
+                    <span className="text-sm text-muted-foreground">
+                      Payment ID
+                    </span>
+                    <code className="text-sm font-mono">
+                      {result.paymentId}
+                    </code>
                   </div>
                 )}
                 {result.stripePaymentIntentId && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Provider reference</span>
-                    <code className="text-sm font-mono">{result.stripePaymentIntentId}</code>
+                    <span className="text-sm text-muted-foreground">
+                      Provider reference
+                    </span>
+                    <code className="text-sm font-mono">
+                      {result.stripePaymentIntentId}
+                    </code>
                   </div>
                 )}
                 {result.providerStatus && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Provider status</span>
+                    <span className="text-sm text-muted-foreground">
+                      Provider status
+                    </span>
                     <span className="text-sm">{result.providerStatus}</span>
                   </div>
                 )}
                 {result.fraudDecision && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Fraud check</span>
-                    <span className={`text-sm font-medium ${
-                      result.fraudDecision.toLowerCase() === "allow" ? "text-green-500" :
-                      result.fraudDecision.toLowerCase() === "review" ? "text-yellow-500" :
-                      "text-destructive"
-                    }`}>
-                      {result.fraudDecision} {result.fraudScore != null && `(${result.fraudScore})`}
+                    <span className="text-sm text-muted-foreground">
+                      Fraud check
+                    </span>
+                    <span
+                      className={`text-sm font-medium ${
+                        result.fraudDecision.toLowerCase() === "allow"
+                          ? "text-green-500"
+                          : result.fraudDecision.toLowerCase() === "review"
+                            ? "text-yellow-500"
+                            : "text-destructive"
+                      }`}
+                    >
+                      {result.fraudDecision}{" "}
+                      {result.fraudScore != null && `(${result.fraudScore})`}
                     </span>
                   </div>
                 )}
                 {result.idempotencyKey && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Idempotency key</span>
+                    <span className="text-sm text-muted-foreground">
+                      Idempotency key
+                    </span>
                     <code className="text-xs font-mono break-all text-right max-w-[220px]">
                       {result.idempotencyKey}
                     </code>

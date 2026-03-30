@@ -95,7 +95,9 @@ export function FraudDashboard() {
       const result = await getFraudCases({ limit: 100 });
       setAllCases(result.items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load fraud data");
+      setError(
+        err instanceof Error ? err.message : "Failed to load fraud data",
+      );
     } finally {
       setLoading(false);
     }
@@ -125,7 +127,8 @@ export function FraudDashboard() {
   const falsePositiveRate =
     resolvedCases.length > 0
       ? Math.round(
-          (resolvedCases.filter((c) => c.status.toLowerCase() === "approved").length /
+          (resolvedCases.filter((c) => c.status.toLowerCase() === "approved")
+            .length /
             resolvedCases.length) *
             100,
         )
@@ -168,16 +171,51 @@ export function FraudDashboard() {
         <>
           {/* KPI grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Total cases" value={stats.total} icon={Shield} color="text-accent" />
-            <StatCard label="Open" value={stats.open} icon={AlertTriangle} color="text-yellow-500" />
-            <StatCard label="In review" value={stats.inReview} icon={Shield} color="text-blue-500" />
-            <StatCard label="Rejected (blocked)" value={stats.rejected} icon={XCircle} color="text-red-500" />
+            <StatCard
+              label="Total cases"
+              value={stats.total}
+              icon={Shield}
+              color="text-accent"
+            />
+            <StatCard
+              label="Open"
+              value={stats.open}
+              icon={AlertTriangle}
+              color="text-yellow-500"
+            />
+            <StatCard
+              label="In review"
+              value={stats.inReview}
+              icon={Shield}
+              color="text-blue-500"
+            />
+            <StatCard
+              label="Rejected (blocked)"
+              value={stats.rejected}
+              icon={XCircle}
+              color="text-red-500"
+            />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Approved" value={stats.approved} icon={CheckCircle} color="text-green-500" />
-            <StatCard label="Avg. score" value={stats.avgScore} icon={BarChart3} color="text-accent" />
-            <StatCard label="Critical risk" value={stats.criticalCount} icon={AlertTriangle} color="text-red-600" />
+            <StatCard
+              label="Approved"
+              value={stats.approved}
+              icon={CheckCircle}
+              color="text-green-500"
+            />
+            <StatCard
+              label="Avg. score"
+              value={stats.avgScore}
+              icon={BarChart3}
+              color="text-accent"
+            />
+            <StatCard
+              label="Critical risk"
+              value={stats.criticalCount}
+              icon={AlertTriangle}
+              color="text-red-600"
+            />
             <StatCard
               label="False positive rate"
               value={`${falsePositiveRate}%`}
@@ -210,10 +248,14 @@ export function FraudDashboard() {
                       >
                         {c.riskLevel}
                       </span>
-                      <span className="font-mono text-xs">{c.id.slice(0, 12)}...</span>
+                      <span className="font-mono text-xs">
+                        {c.id.slice(0, 12)}...
+                      </span>
                       <span>Score: {c.fraudScore}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{c.status}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {c.status}
+                    </span>
                   </button>
                 ))}
               </div>

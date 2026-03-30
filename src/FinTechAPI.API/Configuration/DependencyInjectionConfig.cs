@@ -37,18 +37,32 @@ public static class DependencyInjectionConfig
 
             if (File.Exists(absolutePath))
                 credential = GoogleCredential.FromFile(absolutePath);
-            else
+            else if (environment.IsProduction())
                 throw new FileNotFoundException(
                     $"Firebase service account file not found at: {absolutePath}\n" +
                     $"Place 'firebase-service-account.json' in the API output directory or set an absolute path in appsettings.json.");
+            else
+                // In non-production (dev/test) all Firebase services are replaced by test doubles;
+                // use a placeholder access token so startup succeeds without real credentials.
+                credential = GoogleCredential.FromAccessToken("_test_placeholder_");
         }
         else
         {
-            credential = GoogleCredential.GetApplicationDefault();
+            try
+            {
+                credential = GoogleCredential.GetApplicationDefault();
+            }
+            catch when (!environment.IsProduction())
+            {
+                credential = GoogleCredential.FromAccessToken("_test_placeholder_");
+            }
         }
 
         if (FirebaseApp.DefaultInstance == null)
-            FirebaseApp.Create(new AppOptions { Credential = credential });
+        {
+            try { FirebaseApp.Create(new AppOptions { Credential = credential }); }
+            catch (ArgumentException) { /* already exists — parallel test host builds */ }
+        }
 
         var projectId = firebaseSection["ProjectId"]
             ?? throw new InvalidOperationException("Firebase:ProjectId is not configured.");

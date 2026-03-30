@@ -92,9 +92,7 @@ export function FraudCaseDetails() {
     loadCase();
   }, [loadCase]);
 
-  const handleAction = async (
-    action: "approve" | "reject" | "escalate",
-  ) => {
+  const handleAction = async (action: "approve" | "reject" | "escalate") => {
     if (!caseId) return;
     try {
       setActionLoading(true);
@@ -153,7 +151,10 @@ export function FraudCaseDetails() {
       <div className="text-center py-20 space-y-4">
         <XCircle className="w-12 h-12 mx-auto text-destructive" />
         <p className="text-muted-foreground">Case not found</p>
-        <button onClick={() => navigate("/fraud-cases")} className="text-accent hover:underline text-sm">
+        <button
+          onClick={() => navigate("/fraud-cases")}
+          className="text-accent hover:underline text-sm"
+        >
           Back to cases
         </button>
       </div>
@@ -173,11 +174,15 @@ export function FraudCaseDetails() {
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl">Fraud case</h1>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${statusColor(fraudCase.status)}`}>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-medium border ${statusColor(fraudCase.status)}`}
+            >
               {fraudCase.status}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground font-mono">{fraudCase.id}</p>
+          <p className="text-xs text-muted-foreground font-mono">
+            {fraudCase.id}
+          </p>
         </div>
       </div>
 
@@ -196,7 +201,9 @@ export function FraudCaseDetails() {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-muted-foreground">Amount</span>
-            <p className="font-medium">{formatAmount(fraudCase.amountMinorUnits, fraudCase.currency)}</p>
+            <p className="font-medium">
+              {formatAmount(fraudCase.amountMinorUnits, fraudCase.currency)}
+            </p>
           </div>
           <div>
             <span className="text-muted-foreground">Fraud score</span>
@@ -204,7 +211,9 @@ export function FraudCaseDetails() {
           </div>
           <div>
             <span className="text-muted-foreground">Risk level</span>
-            <p className={`font-medium ${riskColor(fraudCase.riskLevel)}`}>{fraudCase.riskLevel}</p>
+            <p className={`font-medium ${riskColor(fraudCase.riskLevel)}`}>
+              {fraudCase.riskLevel}
+            </p>
           </div>
           <div>
             <span className="text-muted-foreground">User ID</span>
@@ -231,16 +240,22 @@ export function FraudCaseDetails() {
           {fraudCase.resolvedAt && (
             <div>
               <span className="text-muted-foreground">Resolved at</span>
-              <p className="text-xs">{new Date(fraudCase.resolvedAt).toLocaleString()}</p>
+              <p className="text-xs">
+                {new Date(fraudCase.resolvedAt).toLocaleString()}
+              </p>
             </div>
           )}
           <div>
             <span className="text-muted-foreground">Created</span>
-            <p className="text-xs">{new Date(fraudCase.createdAt).toLocaleString()}</p>
+            <p className="text-xs">
+              {new Date(fraudCase.createdAt).toLocaleString()}
+            </p>
           </div>
           <div>
             <span className="text-muted-foreground">Updated</span>
-            <p className="text-xs">{new Date(fraudCase.updatedAt).toLocaleString()}</p>
+            <p className="text-xs">
+              {new Date(fraudCase.updatedAt).toLocaleString()}
+            </p>
           </div>
         </div>
       </div>
@@ -291,7 +306,9 @@ export function FraudCaseDetails() {
             </div>
             <div>
               <span className="text-muted-foreground">Evaluated at</span>
-              <p className="text-xs">{new Date(evaluation.createdAt).toLocaleString()}</p>
+              <p className="text-xs">
+                {new Date(evaluation.createdAt).toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
@@ -301,7 +318,9 @@ export function FraudCaseDetails() {
       {fraudCase.analystNotes && (
         <div className="bg-card p-6 rounded-xl border border-border space-y-2">
           <h2 className="text-lg font-medium">Analyst notes</h2>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{fraudCase.analystNotes}</p>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+            {fraudCase.analystNotes}
+          </p>
         </div>
       )}
 
@@ -311,7 +330,9 @@ export function FraudCaseDetails() {
           <h2 className="text-lg font-medium">Actions</h2>
 
           <div>
-            <label className="block text-sm text-muted-foreground mb-1">Notes (optional)</label>
+            <label className="block text-sm text-muted-foreground mb-1">
+              Notes (optional)
+            </label>
             <textarea
               rows={2}
               value={notes}
@@ -346,7 +367,9 @@ export function FraudCaseDetails() {
           </div>
 
           <div className="border-t border-border pt-4">
-            <label className="block text-sm text-muted-foreground mb-1">Assign to</label>
+            <label className="block text-sm text-muted-foreground mb-1">
+              Assign to
+            </label>
             <div className="flex gap-2">
               <input
                 type="text"

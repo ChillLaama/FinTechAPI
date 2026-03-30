@@ -4,6 +4,7 @@ using FinTechAPI.Domain.Models;
 using FinTechAPI.Infrastructure.Firebase;
 using FinTechAPI.Infrastructure.Firebase.Documents;
 using Google.Cloud.Firestore;
+using Grpc.Core;
 using Microsoft.Extensions.Logging;
 
 namespace FinTechAPI.Infrastructure.Services
@@ -61,28 +62,71 @@ namespace FinTechAPI.Infrastructure.Services
 
         public async Task<FraudCasePageDto> GetCasesAsync(string? status = null, int limit = 20, string? startAfter = null)
         {
-            Query query = _firestore.FraudCases.OrderByDescending("createdAt");
-
-            if (!string.IsNullOrEmpty(status))
-                query = query.WhereEqualTo("status", status);
-
-            // Total count (limited to 200 for performance)
-            var countSnapshot = await query.Limit(200).GetSnapshotAsync();
-            var totalCount = countSnapshot.Count;
-
-            if (!string.IsNullOrEmpty(startAfter))
+            try
             {
-                var startDoc = await _firestore.FraudCases.Document(startAfter).GetSnapshotAsync();
-                if (startDoc.Exists)
-                    query = query.StartAfter(startDoc);
+                Query query = _firestore.FraudCases.OrderByDescending("createdAt");
+
+                if (!string.IsNullOrEmpty(status))
+                    query = query.WhereEqualTo("status", status);
+
+                // Total count (limited to 200 for performance)
+                var countSnapshot = await query.Limit(200).GetSnapshotAsync();
+                var totalCount = countSnapshot.Count;
+
+                if (!string.IsNullOrEmpty(startAfter))
+                {
+                    var startDoc = await _firestore.FraudCases.Document(startAfter).GetSnapshotAsync();
+                    if (startDoc.Exists)
+                        query = query.StartAfter(startDoc);
+                }
+
+                var snapshots = await query.Limit(limit).GetSnapshotAsync();
+                var items = snapshots.Documents
+                    .Select(d => MapCaseDoc(d.ConvertTo<FraudCaseDocument>()))
+                    .ToList();
+
+                return new FraudCasePageDto { Items = items, TotalCount = totalCount };
             }
+            catch (RpcException ex) when (IsMissingCompositeIndex(ex) && !string.IsNullOrEmpty(status))
+            {
+                _logger.LogWarning(
+                    "Missing Firestore composite index for fraud cases query with status filter. Falling back to in-memory ordering. Status={Status}",
+                    status);
 
-            var snapshots = await query.Limit(limit).GetSnapshotAsync();
-            var items = snapshots.Documents
-                .Select(d => MapCaseDoc(d.ConvertTo<FraudCaseDocument>()))
-                .ToList();
+                // Fallback path avoids composite index requirement: filter by status only,
+                // then sort and paginate in memory (bounded to 200 documents).
+                var fallbackSnapshot = await _firestore.FraudCases
+                    .WhereEqualTo("status", status)
+                    .Limit(200)
+                    .GetSnapshotAsync();
 
-            return new FraudCasePageDto { Items = items, TotalCount = totalCount };
+                var orderedCases = fallbackSnapshot.Documents
+                    .Select(d => d.ConvertTo<FraudCaseDocument>())
+                    .OrderByDescending(d => d.CreatedAt.ToDateTime())
+                    .ToList();
+
+                var totalCount = orderedCases.Count;
+
+                if (!string.IsNullOrEmpty(startAfter))
+                {
+                    var index = orderedCases.FindIndex(c => c.Id == startAfter);
+                    if (index >= 0)
+                        orderedCases = orderedCases.Skip(index + 1).ToList();
+                }
+
+                var items = orderedCases
+                    .Take(limit)
+                    .Select(MapCaseDoc)
+                    .ToList();
+
+                return new FraudCasePageDto { Items = items, TotalCount = totalCount };
+            }
+        }
+
+        private static bool IsMissingCompositeIndex(RpcException ex)
+        {
+            return ex.StatusCode == StatusCode.FailedPrecondition &&
+                   ex.Status.Detail.Contains("requires an index", StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<FraudCaseDto?> GetCaseByIdAsync(string caseId)

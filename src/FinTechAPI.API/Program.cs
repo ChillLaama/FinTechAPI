@@ -77,7 +77,7 @@ try
 
     app.Run();
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not HostAbortedException)
 {
     Log.Fatal(ex, "Application terminated unexpectedly");
 }
@@ -85,3 +85,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Required by WebApplicationFactory<Program> in integration tests
+public partial class Program { }

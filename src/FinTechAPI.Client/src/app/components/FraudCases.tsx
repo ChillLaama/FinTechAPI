@@ -79,7 +79,9 @@ export function FraudCases() {
         });
         setPage(result);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load fraud cases");
+        setError(
+          err instanceof Error ? err.message : "Failed to load fraud cases",
+        );
       } finally {
         setLoading(false);
       }
@@ -169,10 +171,14 @@ export function FraudCases() {
             >
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(c.status)}`}>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(c.status)}`}
+                  >
                     {c.status}
                   </span>
-                  <span className={`text-xs font-medium ${riskColor(c.riskLevel)}`}>
+                  <span
+                    className={`text-xs font-medium ${riskColor(c.riskLevel)}`}
+                  >
                     {c.riskLevel}
                   </span>
                   <span className="text-xs text-muted-foreground">
@@ -180,7 +186,9 @@ export function FraudCases() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <span className="font-mono text-xs truncate max-w-[200px]">{c.id}</span>
+                  <span className="font-mono text-xs truncate max-w-[200px]">
+                    {c.id}
+                  </span>
                   <span className="text-muted-foreground">·</span>
                   <span>{formatAmount(c.amountMinorUnits, c.currency)}</span>
                   {c.assignee && (
