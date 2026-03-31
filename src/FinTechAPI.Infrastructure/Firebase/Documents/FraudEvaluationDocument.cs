@@ -44,6 +44,12 @@ namespace FinTechAPI.Infrastructure.Firebase.Documents
         [FirestoreProperty("currency")]
         public string Currency { get; set; } = string.Empty;
 
+        [FirestoreProperty("mlAnomalyScore")]
+        public double? MlAnomalyScore { get; set; }
+
+        [FirestoreProperty("mlModelVersion")]
+        public string? MlModelVersion { get; set; }
+
         [FirestoreProperty("createdAt")]
         public Timestamp CreatedAt { get; set; }
     }

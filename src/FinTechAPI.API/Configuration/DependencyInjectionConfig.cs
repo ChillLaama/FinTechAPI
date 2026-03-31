@@ -5,6 +5,7 @@ using FinTechAPI.API.Auth;
 using FinTechAPI.Application.Interfaces;
 using FinTechAPI.Application.Mappings;
 using FinTechAPI.Infrastructure.Firebase;
+using FinTechAPI.Infrastructure.ML;
 using FinTechAPI.Infrastructure.Payments;
 using FinTechAPI.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
@@ -109,6 +110,8 @@ public static class DependencyInjectionConfig
         services.AddScoped<IStripeBalanceService, StripeBalanceService>();
 
         // ── Application services ─────────────────────────────────────────
+        services.Configure<FraudMlSettings>(configuration.GetSection("FraudMl"));
+        services.AddSingleton<IFraudMlService, OnnxFraudScoringService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IPlatformBalanceService, PlatformBalanceService>();

@@ -30,6 +30,7 @@ public sealed class IntegrationTestFactory : WebApplicationFactory<Program>
     public Mock<IFraudService> FraudService { get; } = new(MockBehavior.Loose);
     public Mock<IPaymentService> PaymentService { get; } = new(MockBehavior.Loose);
     public Mock<IFraudCaseService> FraudCaseService { get; } = new(MockBehavior.Loose);
+    public Mock<IFraudMlService> FraudMlService { get; } = new(MockBehavior.Loose);
     public Mock<IStripePaymentIntentService> StripePaymentIntentService { get; } = new(MockBehavior.Loose);
     public Mock<IStripeBalanceService> StripeBalanceService { get; } = new(MockBehavior.Loose);
     public Mock<IAuditService> AuditService { get; } = new(MockBehavior.Loose);
@@ -40,6 +41,7 @@ public sealed class IntegrationTestFactory : WebApplicationFactory<Program>
         FraudService.Reset();
         PaymentService.Reset();
         FraudCaseService.Reset();
+        FraudMlService.Reset();
         StripePaymentIntentService.Reset();
         StripeBalanceService.Reset();
         AuditService.Reset();
@@ -87,6 +89,10 @@ public sealed class IntegrationTestFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IAuditService>();
             services.AddScoped<IAuditService>(_ => AuditService.Object);
+
+            // ── Replace ML scoring service (registered as singleton) ──────
+            services.RemoveAll<IFraudMlService>();
+            services.AddSingleton<IFraudMlService>(_ => FraudMlService.Object);
         });
     }
 }

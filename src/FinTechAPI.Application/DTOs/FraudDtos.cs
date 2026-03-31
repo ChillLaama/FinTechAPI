@@ -16,6 +16,8 @@ namespace FinTechAPI.Application.DTOs
         public string RulesVersion { get; set; } = string.Empty;
         public long AmountMinorUnits { get; set; }
         public string Currency { get; set; } = string.Empty;
+        public double? MlAnomalyScore { get; set; }
+        public string? MlModelVersion { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -27,6 +29,8 @@ namespace FinTechAPI.Application.DTOs
         public string Decision { get; set; } = string.Empty;
         public List<string> Reasons { get; set; } = new();
         public List<string> RulesTriggered { get; set; } = new();
+        public double? MlAnomalyScore { get; set; }
+        public string? MlModelVersion { get; set; }
     }
 
     public class FraudCaseDto

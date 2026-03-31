@@ -122,6 +122,39 @@ public sealed class PaymentFlowTests
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Fact]
+    public async Task CreatePaymentIntent_WithMlScoring_ReturnsMlFields()
+    {
+        var expected = new PaymentIntentResponseDto
+        {
+            PaymentId             = "pay_ml_test",
+            StripePaymentIntentId = "pi_ml_test",
+            ClientSecret          = "pi_ml_test_secret_xxx",
+            Status                = "requires_payment_method",
+            Amount                = 100.00m,
+            Currency              = "usd",
+            FraudDecision         = "Allow",
+            FraudScore            = 10,
+        };
+
+        _factory.PaymentService
+            .Setup(s => s.CreatePaymentIntentAsync(
+                It.IsAny<CreatePaymentIntentDto>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(expected);
+
+        var response = await _client.PostAsJsonAsync("/api/payments/intents",
+            new { Amount = 100.00m, Currency = "usd" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<PaymentIntentResponseDto>();
+        Assert.NotNull(body);
+        Assert.Equal("pay_ml_test", body.PaymentId);
+        Assert.Equal("Allow", body.FraudDecision);
+    }
 }
 
 /// <summary>

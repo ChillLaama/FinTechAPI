@@ -80,6 +80,17 @@
         "cwd": "${workspaceFolder:Design}",
         "console": "integratedTerminal",
         "skipFiles": ["<node_internals>/**"]
+      },
+      {
+        "name": "ML Trainer",
+        "type": "coreclr",
+        "request": "launch",
+        "preLaunchTask": "build: MlTrainer",
+        "program": "${workspaceFolder:Root}/src/FinTechAPI.MlTrainer/bin/Debug/net9.0/FinTechAPI.MlTrainer.dll",
+        "args": [],
+        "cwd": "${workspaceFolder:Root}/src/FinTechAPI.MlTrainer",
+        "stopAtEntry": false,
+        "console": "integratedTerminal"
       }
     ],
     "compounds": [
@@ -158,6 +169,31 @@
           "cwd": "${workspaceFolder:Client}"
         },
         "problemMatcher": []
+      },
+      {
+        "label": "build: MlTrainer",
+        "command": "dotnet",
+        "type": "process",
+        "args": [
+          "build",
+          "${workspaceFolder:Root}/src/FinTechAPI.MlTrainer/FinTechAPI.MlTrainer.csproj",
+          "/property:GenerateFullPaths=true",
+          "/consoleloggerparameters:NoSummary"
+        ],
+        "problemMatcher": "$msCompile",
+        "group": "build"
+      },
+      {
+        "label": "run: MlTrainer",
+        "command": "dotnet",
+        "type": "process",
+        "args": [
+          "run",
+          "--project",
+          "${workspaceFolder:Root}/src/FinTechAPI.MlTrainer/FinTechAPI.MlTrainer.csproj"
+        ],
+        "problemMatcher": "$msCompile",
+        "group": "none"
       }
     ]
   }

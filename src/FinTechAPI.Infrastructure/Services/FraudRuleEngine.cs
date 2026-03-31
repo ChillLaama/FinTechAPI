@@ -12,7 +12,8 @@ namespace FinTechAPI.Infrastructure.Services
     {
         private readonly FirestoreProvider _firestore;
         private readonly ILogger<FraudRuleEngine> _logger;
-        private const string RulesVersion = "1.0";
+        private readonly IFraudMlService _mlService;
+        private const string RulesVersion = "2.0-ml";
 
         // Rule thresholds
         private const int VelocityWindowMinutes = 60;
@@ -36,10 +37,11 @@ namespace FinTechAPI.Infrastructure.Services
         private const int ReviewThreshold = 40;
         private const int BlockThreshold = 75;
 
-        public FraudRuleEngine(FirestoreProvider firestore, ILogger<FraudRuleEngine> logger)
+        public FraudRuleEngine(FirestoreProvider firestore, ILogger<FraudRuleEngine> logger, IFraudMlService mlService)
         {
             _firestore = firestore;
             _logger = logger;
+            _mlService = mlService;
         }
 
         public async Task<FraudCheckResultDto> EvaluateAsync(
@@ -65,6 +67,14 @@ namespace FinTechAPI.Infrastructure.Services
             // ── Rule 4: High amount ──────────────────────────────────
             var highAmountScore = EvaluateHighAmountRule(amountMinorUnits, reasons, rulesTriggered);
             totalScore += highAmountScore;
+
+            // ── Rule 5: ML anomaly detection (ONNX) ──────────────────
+            double? mlAnomalyScore = null;
+            string? mlModelVersion = null;
+            var mlScore = await EvaluateMlRuleAsync(amountMinorUnits, reasons, rulesTriggered);
+            totalScore += mlScore.Points;
+            mlAnomalyScore = mlScore.AnomalyScore;
+            mlModelVersion = mlScore.ModelVersion;
 
             // Cap at 100
             totalScore = Math.Min(totalScore, 100);
@@ -115,6 +125,8 @@ namespace FinTechAPI.Infrastructure.Services
                 CorrelationId = correlationId,
                 AmountMinorUnits = amountMinorUnits,
                 Currency = currency,
+                MlAnomalyScore = mlAnomalyScore,
+                MlModelVersion = mlModelVersion,
                 CreatedAt = now
             };
 
@@ -131,7 +143,9 @@ namespace FinTechAPI.Infrastructure.Services
                 RiskLevel = riskLevel.ToString(),
                 Decision = decision.ToString(),
                 Reasons = reasons,
-                RulesTriggered = rulesTriggered
+                RulesTriggered = rulesTriggered,
+                MlAnomalyScore = mlAnomalyScore,
+                MlModelVersion = mlModelVersion
             };
         }
 
@@ -260,7 +274,69 @@ namespace FinTechAPI.Infrastructure.Services
             RulesVersion = doc.RulesVersion,
             AmountMinorUnits = doc.AmountMinorUnits,
             Currency = doc.Currency,
+            MlAnomalyScore = doc.MlAnomalyScore,
+            MlModelVersion = doc.MlModelVersion,
             CreatedAt = doc.CreatedAt.ToDateTime()
         };
+
+        // ── ML Rule ───────────────────────────────────────────────────────
+
+        private async Task<MlRuleResult> EvaluateMlRuleAsync(
+            long amountMinorUnits, List<string> reasons, List<string> rulesTriggered)
+        {
+            if (!_mlService.IsModelLoaded)
+            {
+                _logger.LogDebug("ML model not loaded, skipping ML rule");
+                return new MlRuleResult(0, null, null);
+            }
+
+            try
+            {
+                var features = new FraudMlFeaturesDto
+                {
+                    Amount = amountMinorUnits / 100f,
+                    OldBalanceOrg = 0f,
+                    NewBalanceOrig = 0f,
+                    OldBalanceDest = 0f,
+                    NewBalanceDest = 0f,
+                    BalanceDeltaOrg = 0f,
+                    BalanceDeltaDest = 0f,
+                    AmountToBalanceRatio = 1f,
+                    HourOfDay = DateTime.UtcNow.Hour,
+                    TypeEncoded = 1f // PAYMENT type
+                };
+
+                var mlResult = await _mlService.ScoreAsync(features);
+
+                int points = mlResult.AnomalyScore switch
+                {
+                    >= 0.8f => 30,
+                    >= 0.6f => 20,
+                    >= 0.4f => 10,
+                    _ => 0
+                };
+
+                if (points > 0)
+                {
+                    var ruleTag = mlResult.AnomalyScore switch
+                    {
+                        >= 0.8f => "ml_high_risk",
+                        >= 0.6f => "ml_medium_risk",
+                        _ => "ml_low_risk"
+                    };
+                    rulesTriggered.Add(ruleTag);
+                    reasons.Add($"ML model anomaly score: {mlResult.AnomalyScore:F3} (model: {mlResult.ModelVersion})");
+                }
+
+                return new MlRuleResult(points, mlResult.AnomalyScore, mlResult.ModelVersion);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ML rule evaluation failed, skipping");
+                return new MlRuleResult(0, null, null);
+            }
+        }
+
+        private record MlRuleResult(int Points, double? AnomalyScore, string? ModelVersion);
     }
 }
