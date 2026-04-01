@@ -111,7 +111,7 @@ public static class DependencyInjectionConfig
 
         // ── Application services ─────────────────────────────────────────
         services.Configure<FraudMlSettings>(configuration.GetSection("FraudMl"));
-        services.AddSingleton<IFraudMlService, OnnxFraudScoringService>();
+        services.AddSingleton<IFraudMlService, MlNetFraudScoringService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IPlatformBalanceService, PlatformBalanceService>();
@@ -124,6 +124,7 @@ public static class DependencyInjectionConfig
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IFraudService, FraudRuleEngine>();
         services.AddScoped<IFraudCaseService, FraudCaseService>();
+        services.AddScoped<INotificationService, NotificationService>();
 
         // ── Background services ─────────────────────────────────────────
         services.AddHostedService<ReconciliationBackgroundService>();

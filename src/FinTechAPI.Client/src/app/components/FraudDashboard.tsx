@@ -8,6 +8,7 @@ import {
   BarChart3,
   Loader2,
   RefreshCw,
+  Brain,
 } from "lucide-react";
 import { getFraudCases } from "../api/client";
 import type { ApiFraudCase } from "../api/client";
@@ -21,6 +22,9 @@ interface FraudStats {
   avgScore: number;
   criticalCount: number;
   highCount: number;
+  mlFlaggedCount: number;
+  avgMlScore: number;
+  mlModelVersion: string | null;
 }
 
 function computeStats(cases: ApiFraudCase[]): FraudStats {
@@ -33,9 +37,14 @@ function computeStats(cases: ApiFraudCase[]): FraudStats {
     avgScore: 0,
     criticalCount: 0,
     highCount: 0,
+    mlFlaggedCount: 0,
+    avgMlScore: 0,
+    mlModelVersion: null,
   };
 
   let scoreSum = 0;
+  let mlScoreSum = 0;
+  let mlScoredCount = 0;
   for (const c of cases) {
     scoreSum += c.fraudScore;
     switch (c.status.toLowerCase()) {
@@ -54,9 +63,21 @@ function computeStats(cases: ApiFraudCase[]): FraudStats {
     }
     if (c.riskLevel.toLowerCase() === "critical") stats.criticalCount++;
     if (c.riskLevel.toLowerCase() === "high") stats.highCount++;
+    if (c.mlAnomalyScore != null) {
+      mlScoredCount++;
+      mlScoreSum += c.mlAnomalyScore;
+      if (c.mlAnomalyScore >= 0.6) stats.mlFlaggedCount++;
+      if (c.mlModelVersion && !stats.mlModelVersion) {
+        stats.mlModelVersion = c.mlModelVersion;
+      }
+    }
   }
 
   stats.avgScore = cases.length > 0 ? Math.round(scoreSum / cases.length) : 0;
+  stats.avgMlScore =
+    mlScoredCount > 0
+      ? Math.round((mlScoreSum / mlScoredCount) * 100) / 100
+      : 0;
   return stats;
 }
 
@@ -224,6 +245,59 @@ export function FraudDashboard() {
             />
           </div>
 
+          {/* ML model stats */}
+          <div className="bg-card p-6 rounded-xl border border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium flex items-center gap-2">
+                <Brain className="w-5 h-5 text-purple-500" />
+                ML model insights
+              </h2>
+              {stats.mlModelVersion ? (
+                <span className="text-xs px-2 py-1 bg-purple-500/10 text-purple-500 rounded-full">
+                  {stats.mlModelVersion}
+                </span>
+              ) : (
+                <span className="text-xs px-2 py-1 bg-secondary text-muted-foreground rounded-full">
+                  Model not loaded
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <span className="text-sm text-muted-foreground">
+                  Avg. ML score
+                </span>
+                <p className="text-2xl font-semibold">
+                  {stats.avgMlScore > 0 ? stats.avgMlScore.toFixed(2) : "—"}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">
+                  ML flagged (≥0.6)
+                </span>
+                <p className="text-2xl font-semibold text-orange-500">
+                  {stats.mlFlaggedCount}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">
+                  ML coverage
+                </span>
+                <p className="text-2xl font-semibold">
+                  {stats.total > 0
+                    ? `${Math.round(
+                        ((stats.total -
+                          allCases.filter((c) => c.mlAnomalyScore == null)
+                            .length) /
+                          stats.total) *
+                          100,
+                      )}%`
+                    : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* High risk cases */}
           {recentHighRisk.length > 0 && (
             <div className="bg-card p-6 rounded-xl border border-border space-y-3">
@@ -252,6 +326,19 @@ export function FraudDashboard() {
                         {c.id.slice(0, 12)}...
                       </span>
                       <span>Score: {c.fraudScore}</span>
+                      {c.mlAnomalyScore != null && (
+                        <span
+                          className={`text-xs px-1.5 py-0.5 rounded ${
+                            c.mlAnomalyScore >= 0.8
+                              ? "bg-red-500/10 text-red-500"
+                              : c.mlAnomalyScore >= 0.6
+                                ? "bg-orange-500/10 text-orange-500"
+                                : "bg-purple-500/10 text-purple-500"
+                          }`}
+                        >
+                          ML: {c.mlAnomalyScore.toFixed(2)}
+                        </span>
+                      )}
                     </div>
                     <span className="text-xs text-muted-foreground">
                       {c.status}

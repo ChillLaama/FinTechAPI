@@ -1,0 +1,22 @@
+FinTechAPI Fraud Detection — Model Evaluation Report
+Generated: 2026-03-31 20:39:46 UTC
+Dataset:   C:\Users\Daniel\RiderProjects\FinTechAPI\data\Fraud.csv
+════════════════════════════════════════════════════════════
+
+## Model A: FastTree Binary Classification
+  Accuracy:    0.9997
+  AUC-ROC:     0.9976
+  AUC-PR:      0.8513
+  F1 Score:    0.8844
+  Precision:   0.9468
+  Recall:      0.8298
+  Output:      models\fraud_fasttree.onnx
+
+## Model B: Randomized PCA Anomaly Detection
+  AUC-ROC:             0.7067
+  Detection@FP=10:     0.0006
+  Output:              models\fraud_pca.onnx
+
+## Recommendation
+  Use FastTree for production (supervised, higher accuracy on labeled data).
+  PCA included for thesis comparison of supervised vs unsupervised approaches.

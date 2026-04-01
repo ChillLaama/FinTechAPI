@@ -132,19 +132,10 @@ export interface ApiUpdateUserProfilePayload {
 }
 
 export interface ApiUserSettings {
-  emailNotifications: boolean;
-  pushNotifications: boolean;
-  smsNotifications: boolean;
-  transactionAlerts: boolean;
-  securityAlerts: boolean;
-  marketingEmails: boolean;
   theme: string;
   language: string;
-  publicProfile: boolean;
-  showActivity: boolean;
-  dataCollection: boolean;
-  twoFactorAuth: boolean;
-  biometric: boolean;
+  defaultCurrency: string;
+  transactionNotifications: boolean;
   sessionTimeout: string;
   lockedFields: string[];
 }
@@ -606,6 +597,8 @@ export interface ApiFraudEvaluation {
   rulesVersion: string;
   amountMinorUnits: number;
   currency: string;
+  mlAnomalyScore?: number | null;
+  mlModelVersion?: string | null;
   createdAt: string;
 }
 
@@ -622,6 +615,8 @@ export interface ApiFraudCase {
   assignee?: string | null;
   reasons: string[];
   rulesTriggered: string[];
+  mlAnomalyScore?: number | null;
+  mlModelVersion?: string | null;
   analystNotes?: string | null;
   resolvedBy?: string | null;
   resolvedAt?: string | null;
@@ -700,4 +695,40 @@ export function assignFraudCase(caseId: string, assignee: string) {
       body: JSON.stringify({ assignee }),
     },
   );
+}
+
+// ── Notifications ───────────────────────────────────────────
+
+export interface ApiNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export function getNotifications(limit = 50) {
+  return apiRequest<ApiNotification[]>(
+    `/api/notifications?limit=${limit}`,
+  );
+}
+
+export function getUnreadNotificationCount() {
+  return apiRequest<{ count: number }>("/api/notifications/unread-count");
+}
+
+export function markNotificationAsRead(notificationId: string) {
+  return apiRequest<void>(
+    `/api/notifications/${encodeURIComponent(notificationId)}/read`,
+    { method: "PATCH" },
+  );
+}
+
+export function markAllNotificationsAsRead() {
+  return apiRequest<void>("/api/notifications/read-all", {
+    method: "POST",
+  });
 }

@@ -6,7 +6,9 @@ namespace FinTechAPI.Application.Interfaces
     {
         Task<FraudCaseDto> CreateCaseAsync(string evaluationId, string userId, string? paymentId,
             string riskLevel, int fraudScore, long amountMinorUnits, string currency,
-            List<string> reasons, List<string> rulesTriggered, string? correlationId = null);
+            List<string> reasons, List<string> rulesTriggered,
+            double? mlAnomalyScore = null, string? mlModelVersion = null,
+            string? correlationId = null);
 
         Task<FraudCasePageDto> GetCasesAsync(string? status = null, int limit = 20, string? startAfter = null);
         Task<FraudCaseDto?> GetCaseByIdAsync(string caseId);

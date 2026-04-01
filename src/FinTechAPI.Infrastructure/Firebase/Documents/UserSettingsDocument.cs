@@ -35,6 +35,12 @@ namespace FinTechAPI.Infrastructure.Firebase.Documents
         [FirestoreProperty("language")]
         public string Language { get; set; } = "en";
 
+        [FirestoreProperty("defaultCurrency")]
+        public string DefaultCurrency { get; set; } = "usd";
+
+        [FirestoreProperty("transactionNotifications")]
+        public bool TransactionNotifications { get; set; } = true;
+
         [FirestoreProperty("publicProfile")]
         public bool PublicProfile { get; set; }
 

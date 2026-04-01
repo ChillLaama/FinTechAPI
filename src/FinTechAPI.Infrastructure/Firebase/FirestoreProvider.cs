@@ -22,5 +22,6 @@ namespace FinTechAPI.Infrastructure.Firebase
         public CollectionReference AuditLogs => _db.Collection("auditLogs");
         public CollectionReference FraudEvaluations => _db.Collection("fraudEvaluations");
         public CollectionReference FraudCases => _db.Collection("fraudCases");
+        public CollectionReference Notifications => _db.Collection("notifications");
     }
 }

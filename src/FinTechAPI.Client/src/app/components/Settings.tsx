@@ -1,18 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Bell,
-  Moon,
-  Shield,
-  Download,
-  Trash2,
-  Mail,
-  Smartphone,
-  Monitor,
-  Save,
-  AlertCircle,
-} from "lucide-react";
+import { Moon, Shield, Save, AlertCircle, Bell } from "lucide-react";
 import { Button } from "./ui/button";
-import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import {
   Select,
@@ -22,6 +10,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Separator } from "./ui/separator";
+import { Switch } from "./ui/switch";
 import {
   getMyProfile,
   getMySettings,
@@ -31,19 +20,10 @@ import {
 } from "../api/client";
 
 const POLICY_FIELDS = [
-  "emailNotifications",
-  "pushNotifications",
-  "smsNotifications",
-  "transactionAlerts",
-  "securityAlerts",
-  "marketingEmails",
   "theme",
   "language",
-  "publicProfile",
-  "showActivity",
-  "dataCollection",
-  "twoFactorAuth",
-  "biometric",
+  "defaultCurrency",
+  "transactionNotifications",
   "sessionTimeout",
 ] as const;
 
@@ -93,21 +73,15 @@ export function Settings() {
 
   const isLocked = (key: string) => lockedSet.has(key.toLowerCase());
 
-  const handleToggle = (key: keyof ApiUserSettings) => {
+  const handleSelectChange = (key: keyof ApiUserSettings, value: string) => {
     if (!settings || isLocked(String(key))) {
       return;
     }
 
-    setSettings((prev) => {
-      if (!prev) {
-        return prev;
-      }
-
-      return { ...prev, [key]: !prev[key] };
-    });
+    setSettings((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
-  const handleSelectChange = (key: keyof ApiUserSettings, value: string) => {
+  const handleToggle = (key: keyof ApiUserSettings, value: boolean) => {
     if (!settings || isLocked(String(key))) {
       return;
     }
@@ -199,73 +173,6 @@ export function Settings() {
 
       <div className="bg-card border border-border rounded-lg p-6 space-y-6">
         <div className="flex items-center gap-3">
-          <Bell className="w-5 h-5 text-accent" />
-          <h2 className="text-xl text-foreground">Notifications</h2>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-4">
-          <SettingToggle
-            id="emailNotifications"
-            label="Email notifications"
-            description="Receive notifications by email"
-            checked={settings.emailNotifications}
-            locked={isLocked("emailNotifications")}
-            onChange={() => handleToggle("emailNotifications")}
-          />
-
-          <SettingToggle
-            id="pushNotifications"
-            label="Push notifications"
-            description="Receive browser notifications"
-            checked={settings.pushNotifications}
-            locked={isLocked("pushNotifications")}
-            onChange={() => handleToggle("pushNotifications")}
-          />
-
-          <SettingToggle
-            id="smsNotifications"
-            label="SMS notifications"
-            description="Receive notifications by SMS"
-            checked={settings.smsNotifications}
-            locked={isLocked("smsNotifications")}
-            onChange={() => handleToggle("smsNotifications")}
-          />
-
-          <Separator />
-
-          <SettingToggle
-            id="transactionAlerts"
-            label="Transaction alerts"
-            description="Notifications for every transaction"
-            checked={settings.transactionAlerts}
-            locked={isLocked("transactionAlerts")}
-            onChange={() => handleToggle("transactionAlerts")}
-          />
-
-          <SettingToggle
-            id="securityAlerts"
-            label="Security alerts"
-            description="Critical security notifications"
-            checked={settings.securityAlerts}
-            locked={isLocked("securityAlerts")}
-            onChange={() => handleToggle("securityAlerts")}
-          />
-
-          <SettingToggle
-            id="marketingEmails"
-            label="Marketing emails"
-            description="News and offers"
-            checked={settings.marketingEmails}
-            locked={isLocked("marketingEmails")}
-            onChange={() => handleToggle("marketingEmails")}
-          />
-        </div>
-      </div>
-
-      <div className="bg-card border border-border rounded-lg p-6 space-y-6">
-        <div className="flex items-center gap-3">
           <Moon className="w-5 h-5 text-accent" />
           <h2 className="text-xl text-foreground">Appearance</h2>
         </div>
@@ -289,6 +196,11 @@ export function Settings() {
                 <SelectItem value="auto">System</SelectItem>
               </SelectContent>
             </Select>
+            {isLocked("theme") && (
+              <p className="text-xs text-muted-foreground">
+                Locked by admin policy
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -303,68 +215,90 @@ export function Settings() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Espanol</SelectItem>
+                <SelectItem value="es">Español</SelectItem>
                 <SelectItem value="zh">Chinese</SelectItem>
               </SelectContent>
             </Select>
+            {isLocked("language") && (
+              <p className="text-xs text-muted-foreground">
+                Locked by admin policy
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="defaultCurrency">Default currency</Label>
+            <Select
+              value={settings.defaultCurrency}
+              onValueChange={(value) =>
+                handleSelectChange("defaultCurrency", value)
+              }
+              disabled={isLocked("defaultCurrency")}
+            >
+              <SelectTrigger
+                id="defaultCurrency"
+                className="bg-input-background"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="usd">USD ($)</SelectItem>
+                <SelectItem value="eur">EUR (€)</SelectItem>
+                <SelectItem value="gbp">GBP (£)</SelectItem>
+              </SelectContent>
+            </Select>
+            {isLocked("defaultCurrency") && (
+              <p className="text-xs text-muted-foreground">
+                Locked by admin policy
+              </p>
+            )}
           </div>
         </div>
       </div>
 
       <div className="bg-card border border-border rounded-lg p-6 space-y-6">
         <div className="flex items-center gap-3">
+          <Bell className="w-5 h-5 text-accent" />
+          <h2 className="text-xl text-foreground">Notifications</h2>
+        </div>
+
+        <Separator />
+
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label htmlFor="transactionNotifications">
+              Transaction notifications
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Receive notifications for payments, fraud blocks, and case
+              resolutions
+            </p>
+          </div>
+          <Switch
+            id="transactionNotifications"
+            checked={settings.transactionNotifications}
+            onCheckedChange={(value) =>
+              handleToggle("transactionNotifications", value)
+            }
+            disabled={isLocked("transactionNotifications")}
+          />
+        </div>
+        {isLocked("transactionNotifications") && (
+          <p className="text-xs text-muted-foreground">
+            Locked by admin policy
+          </p>
+        )}
+      </div>
+
+      <div className="bg-card border border-border rounded-lg p-6 space-y-6">
+        <div className="flex items-center gap-3">
           <Shield className="w-5 h-5 text-accent" />
-          <h2 className="text-xl text-foreground">Privacy and security</h2>
+          <h2 className="text-xl text-foreground">Security</h2>
         </div>
 
         <Separator />
 
         <div className="space-y-4">
-          <SettingToggle
-            id="publicProfile"
-            label="Public profile"
-            description="Make profile visible to others"
-            checked={settings.publicProfile}
-            locked={isLocked("publicProfile")}
-            onChange={() => handleToggle("publicProfile")}
-          />
-
-          <SettingToggle
-            id="showActivity"
-            label="Show activity"
-            description="Display your activity"
-            checked={settings.showActivity}
-            locked={isLocked("showActivity")}
-            onChange={() => handleToggle("showActivity")}
-          />
-
-          <SettingToggle
-            id="dataCollection"
-            label="Data collection for analytics"
-            description="Helps improve the service"
-            checked={settings.dataCollection}
-            locked={isLocked("dataCollection")}
-            onChange={() => handleToggle("dataCollection")}
-          />
-
-          <SettingToggle
-            id="twoFactorAuth"
-            label="Two-factor authentication"
-            description="Extra layer of protection"
-            checked={settings.twoFactorAuth}
-            locked={isLocked("twoFactorAuth")}
-            onChange={() => handleToggle("twoFactorAuth")}
-          />
-
-          <SettingToggle
-            id="biometric"
-            label="Biometric authentication"
-            description="Sign in with fingerprint or Face ID"
-            checked={settings.biometric}
-            locked={isLocked("biometric")}
-            onChange={() => handleToggle("biometric")}
-          />
-
           <div className="space-y-2">
             <Label htmlFor="sessionTimeout">Session timeout</Label>
             <Select
@@ -387,6 +321,11 @@ export function Settings() {
                 <SelectItem value="never">Never</SelectItem>
               </SelectContent>
             </Select>
+            {isLocked("sessionTimeout") && (
+              <p className="text-xs text-muted-foreground">
+                Locked by admin policy
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -430,137 +369,7 @@ export function Settings() {
           </Button>
         </div>
       )}
-
-      <div className="bg-card border border-border rounded-lg p-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <Monitor className="w-5 h-5 text-accent" />
-          <h2 className="text-xl text-foreground">Connected devices</h2>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-3">
-          {[
-            {
-              icon: Monitor,
-              name: "Chrome on Windows",
-              location: "Current location",
-              lastActive: "Active now",
-              current: true,
-            },
-            {
-              icon: Smartphone,
-              name: "Mobile session",
-              location: "Synced",
-              lastActive: "Recent",
-              current: false,
-            },
-          ].map((device, index) => {
-            const Icon = device.icon;
-            return (
-              <div
-                key={index}
-                className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-foreground">{device.name}</p>
-                      {device.current && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-success/10 text-success border border-success/30">
-                          Current
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {device.location} · {device.lastActive}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="bg-card border border-border rounded-lg p-6 space-y-3">
-        <Button
-          variant="outline"
-          className="w-full justify-start"
-          onClick={() =>
-            alert(
-              "Data export is not yet available. Contact support@financehub.com for assistance.",
-            )
-          }
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Download my data
-        </Button>
-
-        <Button
-          variant="outline"
-          className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={() =>
-            alert(
-              "Account deletion is not yet available. Contact support@financehub.com for assistance.",
-            )
-          }
-        >
-          <Trash2 className="w-4 h-4 mr-2" />
-          Delete account
-        </Button>
-
-        <div className="bg-accent/10 border border-accent/30 rounded-lg p-4 mt-4">
-          <div className="flex items-start gap-3">
-            <Mail className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm text-accent-foreground/90">
-                <strong>Need help?</strong>
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Contact support at support@financehub.com
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
 
-type SettingToggleProps = {
-  id: string;
-  label: string;
-  description: string;
-  checked: boolean;
-  locked: boolean;
-  onChange: () => void;
-};
-
-function SettingToggle({
-  id,
-  label,
-  description,
-  checked,
-  locked,
-  onChange,
-}: SettingToggleProps) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="space-y-0.5">
-        <Label htmlFor={id}>{label}</Label>
-        <p className="text-sm text-muted-foreground">
-          {description}
-          {locked ? " (locked by policy)" : ""}
-        </p>
-      </div>
-      <Switch
-        id={id}
-        checked={checked}
-        disabled={locked}
-        onCheckedChange={onChange}
-      />
-    </div>
-  );
-}

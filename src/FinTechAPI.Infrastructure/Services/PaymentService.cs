@@ -20,6 +20,7 @@ namespace FinTechAPI.Infrastructure.Services
         private readonly ITransactionService _transactionService;
         private readonly IFraudService _fraudService;
         private readonly IFraudCaseService _fraudCaseService;
+        private readonly INotificationService _notificationService;
         private readonly ILogger<PaymentService> _logger;
 
         // Defines the forward-moving lifecycle order. Terminal statuses share the
@@ -46,6 +47,7 @@ namespace FinTechAPI.Infrastructure.Services
             ITransactionService transactionService,
             IFraudService fraudService,
             IFraudCaseService fraudCaseService,
+            INotificationService notificationService,
             ILogger<PaymentService> logger)
         {
             _firestore = firestore;
@@ -54,6 +56,7 @@ namespace FinTechAPI.Infrastructure.Services
             _transactionService = transactionService;
             _fraudService = fraudService;
             _fraudCaseService = fraudCaseService;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -81,17 +84,28 @@ namespace FinTechAPI.Infrastructure.Services
                     "Payment blocked by fraud check. UserId={UserId}, FraudScore={FraudScore}, EvaluationId={EvaluationId}",
                     userId, fraudResult.FraudScore, fraudResult.EvaluationId);
 
+                await _notificationService.SendAsync(userId, "fraud_block",
+                    "Payment blocked",
+                    $"Your payment of {dto.Amount} {normalizedCurrency.ToUpperInvariant()} was blocked by our security system. Contact support if you believe this is an error.",
+                    "payment", null);
+
                 throw new PaymentProviderException(
                     "Payment blocked by fraud detection. Please contact support.");
             }
 
             if (string.Equals(fraudResult.Decision, "Review", StringComparison.OrdinalIgnoreCase))
             {
+                await _notificationService.SendAsync(userId, "fraud_review",
+                    "Payment under review",
+                    $"Your payment of {dto.Amount} {normalizedCurrency.ToUpperInvariant()} is being reviewed by our security team.",
+                    "payment", null);
+
                 await _fraudCaseService.CreateCaseAsync(
                     fraudResult.EvaluationId, userId, null,
                     fraudResult.RiskLevel, fraudResult.FraudScore,
                     amountMinorUnits, normalizedCurrency,
-                    fraudResult.Reasons, fraudResult.RulesTriggered);
+                    fraudResult.Reasons, fraudResult.RulesTriggered,
+                    fraudResult.MlAnomalyScore, fraudResult.MlModelVersion);
             }
 
             var createOptions = new PaymentIntentCreateOptions
@@ -386,6 +400,33 @@ namespace FinTechAPI.Infrastructure.Services
             var linkedTransactionId = paymentDocument.ContainsField("transactionId")
                 ? paymentDocument.GetValue<string>("transactionId")
                 : null;
+
+            // ── Notify user about terminal status changes ────────────────
+            if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(intent.Status))
+            {
+                var amountMinor = paymentDocument.ContainsField("amountMinorUnits")
+                    ? paymentDocument.GetValue<long>("amountMinorUnits")
+                    : 0;
+                var currency = paymentDocument.ContainsField("currency")
+                    ? paymentDocument.GetValue<string>("currency")?.ToUpperInvariant() ?? ""
+                    : "";
+                var displayAmount = amountMinor / 100m;
+
+                if (string.Equals(intent.Status, "succeeded", StringComparison.OrdinalIgnoreCase))
+                {
+                    await _notificationService.SendAsync(userId, "payment_succeeded",
+                        "Payment successful",
+                        $"Your payment of {displayAmount:F2} {currency} has been processed successfully.",
+                        "payment", paymentId);
+                }
+                else if (string.Equals(intent.Status, "canceled", StringComparison.OrdinalIgnoreCase))
+                {
+                    await _notificationService.SendAsync(userId, "payment_failed",
+                        "Payment canceled",
+                        $"Your payment of {displayAmount:F2} {currency} was canceled.",
+                        "payment", paymentId);
+                }
+            }
 
             await SyncTransactionStatusAsync(linkedTransactionId, userId, intent.Status, stripeEvent.Type ?? "webhook");
 

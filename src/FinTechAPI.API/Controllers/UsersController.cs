@@ -308,6 +308,8 @@ namespace FinTechAPI.API.Controllers
             MarketingEmails = settings.MarketingEmails,
             Theme = settings.Theme,
             Language = settings.Language,
+            DefaultCurrency = settings.DefaultCurrency,
+            TransactionNotifications = settings.TransactionNotifications,
             PublicProfile = settings.PublicProfile,
             ShowActivity = settings.ShowActivity,
             DataCollection = settings.DataCollection,
@@ -332,6 +334,8 @@ namespace FinTechAPI.API.Controllers
             if (!lockSet.Contains("marketingEmails")) target.MarketingEmails = dto.MarketingEmails;
             if (!lockSet.Contains("theme")) target.Theme = dto.Theme;
             if (!lockSet.Contains("language")) target.Language = dto.Language;
+            if (!lockSet.Contains("defaultCurrency")) target.DefaultCurrency = dto.DefaultCurrency;
+            if (!lockSet.Contains("transactionNotifications")) target.TransactionNotifications = dto.TransactionNotifications;
             if (!lockSet.Contains("publicProfile")) target.PublicProfile = dto.PublicProfile;
             if (!lockSet.Contains("showActivity")) target.ShowActivity = dto.ShowActivity;
             if (!lockSet.Contains("dataCollection")) target.DataCollection = dto.DataCollection;

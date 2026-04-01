@@ -23,7 +23,7 @@ public sealed class PaymentFlowTests
     {
         _factory = factory;
         _factory.ResetMocks();
-        _client  = factory.CreateClient().AsUser();
+        _client = factory.CreateClient().AsUser();
     }
 
     // ── Create payment intent ─────────────────────────────────────────────
@@ -33,14 +33,14 @@ public sealed class PaymentFlowTests
     {
         var expected = new PaymentIntentResponseDto
         {
-            PaymentId             = "pay_test001",
+            PaymentId = "pay_test001",
             StripePaymentIntentId = "pi_test001",
-            ClientSecret          = "pi_test001_secret_xxx",
-            Status                = "requires_payment_method",
-            Amount                = 25.00m,
-            Currency              = "usd",
-            FraudDecision         = "Allow",
-            FraudScore            = 0,
+            ClientSecret = "pi_test001_secret_xxx",
+            Status = "requires_payment_method",
+            Amount = 25.00m,
+            Currency = "usd",
+            FraudDecision = "Allow",
+            FraudScore = 0,
         };
 
         _factory.PaymentService
@@ -96,10 +96,10 @@ public sealed class PaymentFlowTests
             .Setup(s => s.GetPaymentByIdAsync("pay_test001", It.IsAny<string>()))
             .ReturnsAsync(new PaymentDto
             {
-                Id       = "pay_test001",
-                Amount   = 25.00m,
+                Id = "pay_test001",
+                Amount = 25.00m,
                 Currency = "usd",
-                Status   = "succeeded",
+                Status = "succeeded",
             });
 
         var response = await _client.GetAsync("/api/payments/pay_test001");
@@ -128,14 +128,14 @@ public sealed class PaymentFlowTests
     {
         var expected = new PaymentIntentResponseDto
         {
-            PaymentId             = "pay_ml_test",
+            PaymentId = "pay_ml_test",
             StripePaymentIntentId = "pi_ml_test",
-            ClientSecret          = "pi_ml_test_secret_xxx",
-            Status                = "requires_payment_method",
-            Amount                = 100.00m,
-            Currency              = "usd",
-            FraudDecision         = "Allow",
-            FraudScore            = 10,
+            ClientSecret = "pi_ml_test_secret_xxx",
+            Status = "requires_payment_method",
+            Amount = 100.00m,
+            Currency = "usd",
+            FraudDecision = "Allow",
+            FraudScore = 10,
         };
 
         _factory.PaymentService
@@ -171,8 +171,8 @@ public sealed class FraudCaseFlowTests
     {
         _factory = factory;
         _factory.ResetMocks();
-        _admin   = factory.CreateClient().AsAdmin();
-        _user    = factory.CreateClient().AsUser();
+        _admin = factory.CreateClient().AsAdmin();
+        _user = factory.CreateClient().AsUser();
     }
 
     [Fact]
@@ -194,9 +194,9 @@ public sealed class FraudCaseFlowTests
             .Setup(s => s.GetCaseByIdAsync("case_001"))
             .ReturnsAsync(new FraudCaseDto
             {
-                Id         = "case_001",
-                Status     = "open",
-                RiskLevel  = "High",
+                Id = "case_001",
+                Status = "open",
+                RiskLevel = "High",
                 FraudScore = 60,
             });
 

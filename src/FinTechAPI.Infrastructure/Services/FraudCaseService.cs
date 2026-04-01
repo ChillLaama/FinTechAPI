@@ -13,19 +13,23 @@ namespace FinTechAPI.Infrastructure.Services
     {
         private readonly FirestoreProvider _firestore;
         private readonly IAuditService _audit;
+        private readonly INotificationService _notificationService;
         private readonly ILogger<FraudCaseService> _logger;
 
-        public FraudCaseService(FirestoreProvider firestore, IAuditService audit, ILogger<FraudCaseService> logger)
+        public FraudCaseService(FirestoreProvider firestore, IAuditService audit, INotificationService notificationService, ILogger<FraudCaseService> logger)
         {
             _firestore = firestore;
             _audit = audit;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
         public async Task<FraudCaseDto> CreateCaseAsync(
             string evaluationId, string userId, string? paymentId,
             string riskLevel, int fraudScore, long amountMinorUnits, string currency,
-            List<string> reasons, List<string> rulesTriggered, string? correlationId = null)
+            List<string> reasons, List<string> rulesTriggered,
+            double? mlAnomalyScore = null, string? mlModelVersion = null,
+            string? correlationId = null)
         {
             var now = Timestamp.GetCurrentTimestamp();
             var docRef = _firestore.FraudCases.Document();
@@ -43,6 +47,8 @@ namespace FinTechAPI.Infrastructure.Services
                 Currency = currency,
                 Reasons = reasons,
                 RulesTriggered = rulesTriggered,
+                MlAnomalyScore = mlAnomalyScore,
+                MlModelVersion = mlModelVersion,
                 CorrelationId = correlationId,
                 CreatedAt = now,
                 UpdatedAt = now
@@ -223,6 +229,13 @@ namespace FinTechAPI.Infrastructure.Services
                 "Fraud case resolved. CaseId={CaseId}, Status={Status}, ResolvedBy={ResolvedBy}, CorrelationId={CorrelationId}",
                 caseId, newStatus, resolvedBy, correlationId);
 
+            var notifTitle = newStatus == FraudCaseStatus.Approved
+                ? "Fraud review completed" : "Transaction rejected";
+            var notifMessage = newStatus == FraudCaseStatus.Approved
+                ? "Your flagged transaction has been reviewed and approved."
+                : "Your flagged transaction has been reviewed and rejected. Contact support for details.";
+            await _notificationService.SendAsync(doc.UserId, "fraud_resolved", notifTitle, notifMessage, "fraudCase", caseId);
+
             return MapCaseDoc(doc);
         }
 
@@ -240,6 +253,8 @@ namespace FinTechAPI.Infrastructure.Services
             Assignee = doc.Assignee,
             Reasons = doc.Reasons,
             RulesTriggered = doc.RulesTriggered,
+            MlAnomalyScore = doc.MlAnomalyScore,
+            MlModelVersion = doc.MlModelVersion,
             AnalystNotes = doc.AnalystNotes,
             ResolvedBy = doc.ResolvedBy,
             ResolvedAt = doc.ResolvedAt?.ToDateTime(),

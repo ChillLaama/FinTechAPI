@@ -8,15 +8,15 @@ using Moq;
 
 namespace FinTechAPI.Tests.Services;
 
-public class OnnxFraudScoringServiceTests
+public class MlNetFraudScoringServiceTests
 {
     [Fact]
     public void IsModelLoaded_WhenDisabled_ReturnsFalse()
     {
         var options = Options.Create(new FraudMlSettings { Enabled = false });
-        var logger = Mock.Of<ILogger<OnnxFraudScoringService>>();
+        var logger = Mock.Of<ILogger<MlNetFraudScoringService>>();
 
-        using var service = new OnnxFraudScoringService(options, logger);
+        var service = new MlNetFraudScoringService(options, logger);
 
         Assert.False(service.IsModelLoaded);
     }
@@ -27,11 +27,11 @@ public class OnnxFraudScoringServiceTests
         var options = Options.Create(new FraudMlSettings
         {
             Enabled = true,
-            ModelPath = "nonexistent/model.onnx"
+            ModelPath = "nonexistent/model.zip"
         });
-        var logger = Mock.Of<ILogger<OnnxFraudScoringService>>();
+        var logger = Mock.Of<ILogger<MlNetFraudScoringService>>();
 
-        using var service = new OnnxFraudScoringService(options, logger);
+        var service = new MlNetFraudScoringService(options, logger);
 
         Assert.False(service.IsModelLoaded);
     }
@@ -40,9 +40,9 @@ public class OnnxFraudScoringServiceTests
     public async Task ScoreAsync_WhenModelNotLoaded_ReturnsNeutralScore()
     {
         var options = Options.Create(new FraudMlSettings { Enabled = false });
-        var logger = Mock.Of<ILogger<OnnxFraudScoringService>>();
+        var logger = Mock.Of<ILogger<MlNetFraudScoringService>>();
 
-        using var service = new OnnxFraudScoringService(options, logger);
+        var service = new MlNetFraudScoringService(options, logger);
 
         var features = new FraudMlFeaturesDto
         {
@@ -65,11 +65,11 @@ public class OnnxFraudScoringServiceTests
         var options = Options.Create(new FraudMlSettings
         {
             Enabled = true,
-            ModelPath = "does_not_exist.onnx"
+            ModelPath = "does_not_exist.zip"
         });
-        var logger = Mock.Of<ILogger<OnnxFraudScoringService>>();
+        var logger = Mock.Of<ILogger<MlNetFraudScoringService>>();
 
-        using var service = new OnnxFraudScoringService(options, logger);
+        var service = new MlNetFraudScoringService(options, logger);
 
         var features = new FraudMlFeaturesDto { Amount = 500f };
 

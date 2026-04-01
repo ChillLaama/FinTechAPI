@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Loader2,
   RefreshCw,
+  Brain,
 } from "lucide-react";
 import { getFraudCases } from "../api/client";
 import type { ApiFraudCase, ApiFraudCasePage } from "../api/client";
@@ -184,6 +185,22 @@ export function FraudCases() {
                   <span className="text-xs text-muted-foreground">
                     Score: {c.fraudScore}
                   </span>
+                  {c.mlAnomalyScore != null && (
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                        c.mlAnomalyScore >= 0.8
+                          ? "bg-red-500/10 text-red-500"
+                          : c.mlAnomalyScore >= 0.6
+                            ? "bg-orange-500/10 text-orange-500"
+                            : c.mlAnomalyScore >= 0.4
+                              ? "bg-yellow-500/10 text-yellow-500"
+                              : "bg-green-500/10 text-green-500"
+                      }`}
+                    >
+                      <Brain className="w-3 h-3" />
+                      {c.mlAnomalyScore.toFixed(2)}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <span className="font-mono text-xs truncate max-w-[200px]">

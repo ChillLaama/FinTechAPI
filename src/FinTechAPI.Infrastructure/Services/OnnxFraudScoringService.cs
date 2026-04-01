@@ -4,23 +4,46 @@ using FinTechAPI.Application.Interfaces;
 using FinTechAPI.Infrastructure.ML;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.ML.OnnxRuntime;
-using Microsoft.ML.OnnxRuntime.Tensors;
+using Microsoft.ML;
 
 namespace FinTechAPI.Infrastructure.Services
 {
-    public sealed class OnnxFraudScoringService : IFraudMlService, IDisposable
+    /// <summary>
+    /// Input class matching the trained FastTree model's schema.
+    /// </summary>
+    public sealed class FraudModelInput
     {
-        private readonly InferenceSession? _session;
-        private readonly ILogger<OnnxFraudScoringService> _logger;
+        public float Amount { get; set; }
+        public string Type { get; set; } = string.Empty;
+        public float OldBalanceOrg { get; set; }
+        public float NewBalanceOrig { get; set; }
+        public float OldBalanceDest { get; set; }
+        public float NewBalanceDest { get; set; }
+        public float Step { get; set; }
+    }
+
+    /// <summary>
+    /// Output class for FastTree binary classification predictions.
+    /// </summary>
+    public sealed class FraudModelOutput
+    {
+        public bool PredictedLabel { get; set; }
+        public float Score { get; set; }
+        public float Probability { get; set; }
+    }
+
+    public sealed class MlNetFraudScoringService : IFraudMlService
+    {
+        private readonly PredictionEngine<FraudModelInput, FraudModelOutput>? _engine;
+        private readonly ILogger<MlNetFraudScoringService> _logger;
         private readonly bool _enabled;
         private readonly string _modelVersion;
 
-        public bool IsModelLoaded => _session != null && _enabled;
+        public bool IsModelLoaded => _engine != null && _enabled;
 
-        public OnnxFraudScoringService(
+        public MlNetFraudScoringService(
             IOptions<FraudMlSettings> options,
-            ILogger<OnnxFraudScoringService> logger)
+            ILogger<MlNetFraudScoringService> logger)
         {
             _logger = logger;
             var settings = options.Value;
@@ -40,7 +63,7 @@ namespace FinTechAPI.Infrastructure.Services
             if (!File.Exists(modelPath))
             {
                 _logger.LogWarning(
-                    "ONNX fraud model not found at {ModelPath}. ML scoring will be skipped",
+                    "Fraud model not found at {ModelPath}. ML scoring will be skipped",
                     modelPath);
                 _modelVersion = "not-found";
                 return;
@@ -48,15 +71,17 @@ namespace FinTechAPI.Infrastructure.Services
 
             try
             {
-                _session = new InferenceSession(modelPath);
-                _modelVersion = $"fasttree-onnx-{new FileInfo(modelPath).LastWriteTimeUtc:yyyyMMdd}";
+                var mlContext = new MLContext();
+                var model = mlContext.Model.Load(modelPath, out _);
+                _engine = mlContext.Model.CreatePredictionEngine<FraudModelInput, FraudModelOutput>(model);
+                _modelVersion = $"fasttree-v{new FileInfo(modelPath).LastWriteTimeUtc:yyyyMMdd}";
                 _logger.LogInformation(
-                    "ONNX fraud model loaded successfully. Path={ModelPath}, Version={ModelVersion}",
+                    "Fraud model loaded successfully. Path={ModelPath}, Version={ModelVersion}",
                     modelPath, _modelVersion);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to load ONNX fraud model from {ModelPath}", modelPath);
+                _logger.LogError(ex, "Failed to load fraud model from {ModelPath}", modelPath);
                 _modelVersion = "load-error";
             }
         }
@@ -76,73 +101,40 @@ namespace FinTechAPI.Infrastructure.Services
 
             var sw = Stopwatch.StartNew();
 
-            var inputData = new float[]
-            {
-                features.Amount,
-                features.TypeEncoded,
-                features.OldBalanceOrg,
-                features.NewBalanceOrig,
-                features.OldBalanceDest,
-                features.NewBalanceDest,
-                features.BalanceDeltaOrg,
-                features.BalanceDeltaDest,
-                features.AmountToBalanceRatio,
-                features.HourOfDay
-            };
-
-            var inputTensor = new DenseTensor<float>(inputData, new[] { 1, inputData.Length });
-
-            var inputName = _session!.InputMetadata.Keys.First();
-            var inputs = new List<NamedOnnxValue>
-            {
-                NamedOnnxValue.CreateFromTensor(inputName, inputTensor)
-            };
-
             try
             {
-                using var results = _session.Run(inputs);
-
-                // FastTree ONNX output: "Score" (raw score) and "Probability" columns
-                float probability = 0f;
-                bool predictedLabel = false;
-
-                foreach (var result in results)
+                var input = new FraudModelInput
                 {
-                    if (result.Name == "Probability" || result.Name == "probability")
+                    Amount = features.Amount,
+                    Type = features.TypeEncoded switch
                     {
-                        var probTensor = result.AsTensor<float>();
-                        probability = probTensor.First();
-                    }
-                    else if (result.Name == "PredictedLabel" || result.Name == "predicted_label")
-                    {
-                        var predTensor = result.AsTensor<bool>();
-                        predictedLabel = predTensor.First();
-                    }
-                    else if (result.Name == "Score" || result.Name == "score")
-                    {
-                        // Fallback: use sigmoid of raw score if no probability output
-                        if (probability == 0f)
-                        {
-                            var scoreTensor = result.AsTensor<float>();
-                            var rawScore = scoreTensor.First();
-                            probability = 1f / (1f + MathF.Exp(-rawScore));
-                        }
-                    }
-                }
+                        1f => "CASH_IN",
+                        2f => "CASH_OUT",
+                        3f => "DEBIT",
+                        4f => "PAYMENT",
+                        5f => "TRANSFER",
+                        _ => "PAYMENT"
+                    },
+                    OldBalanceOrg = features.OldBalanceOrg,
+                    NewBalanceOrig = features.NewBalanceOrig,
+                    OldBalanceDest = features.OldBalanceDest,
+                    NewBalanceDest = features.NewBalanceDest,
+                    Step = features.HourOfDay
+                };
 
+                var prediction = _engine!.Predict(input);
                 sw.Stop();
 
-                // Clamp to [0, 1]
-                probability = Math.Clamp(probability, 0f, 1f);
+                var probability = Math.Clamp(prediction.Probability, 0f, 1f);
 
                 _logger.LogDebug(
                     "ML inference completed. Score={Score:F4}, IsAnomaly={IsAnomaly}, TimeMs={TimeMs}",
-                    probability, predictedLabel, sw.ElapsedMilliseconds);
+                    probability, prediction.PredictedLabel, sw.ElapsedMilliseconds);
 
                 return Task.FromResult(new FraudMlScoreDto
                 {
                     AnomalyScore = probability,
-                    IsAnomaly = predictedLabel || probability >= 0.5f,
+                    IsAnomaly = prediction.PredictedLabel || probability >= 0.5f,
                     ModelVersion = _modelVersion,
                     InferenceTimeMs = sw.ElapsedMilliseconds
                 });
@@ -150,7 +142,7 @@ namespace FinTechAPI.Infrastructure.Services
             catch (Exception ex)
             {
                 sw.Stop();
-                _logger.LogError(ex, "ONNX inference failed");
+                _logger.LogError(ex, "ML inference failed");
 
                 return Task.FromResult(new FraudMlScoreDto
                 {
@@ -160,11 +152,6 @@ namespace FinTechAPI.Infrastructure.Services
                     InferenceTimeMs = sw.ElapsedMilliseconds
                 });
             }
-        }
-
-        public void Dispose()
-        {
-            _session?.Dispose();
         }
     }
 }

@@ -1,303 +1,148 @@
-# FinTechAPI: Master Plan и Опорное Описание
+# FinTechAPI: Master Plan
 
-Дата: 2026-03-19
-Статус: рабочий документ для постоянного обновления
+Дата создания: 2026-03-19
+Последнее обновление: 2026-03-31
+Статус: рабочий документ
 
-## 0. Архитектурная поправка (2026-03-19)
+## 0. Архитектурные решения
 
-Принятое решение:
-
-- FinTechAPI работает в non-custodial модели.
-- Платформа не хранит средства пользователей и не ведет внутренний wallet-balance как денежное обязательство.
-- Stripe является источником движения средств и источником отображаемого platform balance.
-- Внутренние `Transaction` и `Payment` являются бизнесовыми и техническими сущностями для orchestration, fraud, audit и reconciliation.
-
-Важно:
-
-- `Account.balance` в текущей схеме считается legacy-полем на переходный период.
-- Это поле не должно использоваться как основной денежный source of truth в новом UI и в новом backend-пайплайне.
+- FinTechAPI — non-custodial модель. Платформа не хранит средства пользователей.
+- Stripe — единственный источник движения средств и platform balance.
+- `Account.balance` — legacy-поле, не source of truth.
+- ML.NET + ONNX Runtime — гибридная fraud detection (rules + ML).
 
 ---
 
-## 1. Цель документа
+## 1. Архитектура
 
-Этот файл — единая опора для планирования развития продукта.
+- **Backend:** .NET 9, слоистая архитектура (API / Application / Domain / Infrastructure).
+- **ML Trainer:** .NET 9 Console App (`FinTechAPI.MlTrainer`) — ML.NET FastTree + RandomizedPCA → ONNX.
+- **Хранилище и auth:** Firebase + Firestore.
+- **Платежи:** Stripe (payment intents + webhook + reconciliation).
+- **Frontend:** React + TypeScript + Vite + Tailwind/Radix.
+- **Тесты:** xUnit + Moq (99 unit + 18 integration).
 
-Используем его для:
+### Структура репозитория
 
-- фиксации текущего состояния системы;
-- синхронизации backend/frontend/design;
-- планирования редизайна;
-- ведения приоритетного списка задач;
-- декомпозиции задач на спринты.
-
----
-
-## 2. Что у нас есть сейчас
-
-### 2.1 Архитектура
-
-- Backend: .NET 9, слоистая архитектура (API / Application / Domain / Infrastructure).
-- Хранилище и auth: Firebase + Firestore.
-- Платежи: Stripe (payment intents + webhook).
-- Frontend: React + TypeScript + Vite + Tailwind/Radix.
-- Тесты: xUnit + Moq (backend).
-
-Уточнение:
-
-- Основной отображаемый баланс в продукте должен приходить из Stripe platform side.
-- Внутренние балансовые поля могут использоваться только как legacy/аналитика до полного миграционного cleanup.
-
-### 2.2 Структура репозитория
-
-- `src/FinTechAPI.API` — веб-API, контроллеры, DI, auth.
+- `src/FinTechAPI.API` — контроллеры, DI, auth, middleware.
 - `src/FinTechAPI.Application` — DTO, интерфейсы, mappings, exceptions.
 - `src/FinTechAPI.Domain` — доменные модели и enum.
-- `src/FinTechAPI.Infrastructure` — реализации сервисов, Firestore, Stripe.
-- `src/FinTechAPI.Client` — основной веб-клиент.
-- `src/Design` — отдельный дизайн-стенд/прототип.
-- `tests/FinTechAPI.Tests` — backend тесты.
+- `src/FinTechAPI.Infrastructure` — сервисы, Firestore, Stripe, ONNX Runtime inference.
+- `src/FinTechAPI.MlTrainer` — ML pipeline (Kaggle CSV → train → ONNX export).
+- `src/FinTechAPI.Client` — production-ready веб-клиент.
+- `src/Design` — UI-стенд/прототип (частично расходится с Client).
+- `tests/FinTechAPI.Tests` — unit тесты.
+- `tests/FinTechAPI.IntegrationTests` — integration тесты.
 
 ---
 
-## 3. Функционал (карта возможностей)
+## 2. Реализованный функционал
 
-### 3.1 Backend API (реализовано)
+### 2.1 Backend API
 
-#### Auth
+| Модуль | Функционал | Статус |
+|--------|-----------|--------|
+| **Auth** | Register, Login, Forgot/Reset Password, Verify Email, Send Verification Email | ✅ |
+| **Accounts** | CRUD (list, get, create, update, delete) с ownership check | ✅ |
+| **Transactions** | CRUD + status transitions + фильтрация по accountId | ✅ |
+| **Payments** | Payment intent (идемпотентность), webhook, status timeline, manual reconcile | ✅ |
+| **Payouts** | Создание, список, reconciliation | ✅ |
+| **Fraud** | FraudRuleEngine (5 deterministic rules + ML scoring), fraud cases CRUD, evaluate/approve/reject/escalate/assign | ✅ |
+| **ML Fraud** | IFraudMlService, OnnxFraudScoringService (singleton InferenceSession), feature flag, graceful degradation | ✅ |
+| **Profile** | GET/PATCH /api/users/me/profile (Firestore + Firebase Auth sync) | ✅ |
+| **Settings** | GET/PATCH /api/users/me/settings + admin policy locks (15+ settings) | ✅ |
+| **Reports** | Отчёт по типу транзакции | ✅ |
+| **Users/Roles** | Admin: list/get/delete/disable users, set/remove roles via custom claims | ✅ |
+| **Platform** | Balance, summary, API latency (via Stripe) | ✅ |
+| **Reconciliation** | Background service (каждые 5 мин), проверка Stripe на divergence | ✅ |
+| **Dev tools** | Topup, set-balance, seed, clear, quick-register | ✅ |
 
-- Регистрация пользователя.
-- Логин пользователя.
-- Выдача токена и cookie для сессии.
+### 2.2 Frontend Client (всё подключено к реальному API)
 
-#### Accounts
+| Экран | Функционал | Статус |
+|-------|-----------|--------|
+| **Login / Register** | Firebase auth, JWT, protected routes | ✅ |
+| **Forgot / Reset / Verify** | Реальные backend flows через Firebase REST API | ✅ |
+| **Dashboard** | Баланс (Stripe), транзакции, графики (Recharts), latency | ✅ |
+| **Transactions** | Таблица, multi-field фильтры, поиск, detail modal | ✅ |
+| **Create Payment** | Транзакция + payment intent + status update | ✅ |
+| **Payment Details** | Provider timeline, webhook event, correlation ID, reconcile | ✅ |
+| **Payouts** | Создание с idempotency, список, reconcile | ✅ |
+| **Profile** | GET/PATCH через API, edit/save/cancel flow | ✅ |
+| **Settings** | GET/PATCH через API, policy locks, admin section | ✅ |
+| **Accounts** | Полный CRUD (10 типов, выбор валюты) | ✅ |
+| **Fraud Dashboard** | KPI (total/open/review/approved/rejected), avg score, risk counts | ✅ |
+| **Fraud Cases** | Список с пагинацией, status filter, rules triggered | ✅ |
+| **Fraud Case Details** | Overview, triggered rules, evaluation, approve/reject/escalate/assign | ✅ |
+| **Help** | Статический FAQ + email (заглушка) | ⚠️ |
 
-- Получение списка счетов пользователя.
-- Получение счета по id.
-- Создание счета.
-- Обновление счета.
-- Удаление счета.
+### 2.3 ML.NET Pipeline
 
-#### Transactions
+| Компонент | Статус |
+|-----------|--------|
+| FinTechAPI.MlTrainer (Console App, ML.NET 3.0.1) | ✅ Код готов |
+| Feature engineering (OneHot, computed columns, normalize) | ✅ |
+| FastTree (supervised, 100 trees/20 leaves) | ✅ |
+| RandomizedPCA (unsupervised anomaly, rank=5) | ✅ |
+| ONNX export + evaluation report | ✅ |
+| OnnxFraudScoringService (Runtime 1.17.3, singleton) | ✅ |
+| Hybrid integration: ML score → 6-е правило в FraudRuleEngine | ✅ |
+| Feature flag (FraudMl:Enabled) | ✅ |
+| **Kaggle CSV скачан и модель натренирована** | ❌ Ожидает |
+| **ONNX файл скопирован в Infrastructure/ML/Models/** | ❌ Ожидает |
 
-- Получение всех транзакций пользователя.
-- Получение транзакции по id.
-- Получение транзакций по accountId.
-- Создание транзакции.
-- Обновление транзакции.
-- Изменение статуса транзакции.
-- Удаление транзакции.
+### 2.4 Тестирование
 
-#### Payments (Stripe)
-
-- Создание payment intent с идемпотентностью.
-- Получение платежа по id.
-- Обработка Stripe webhook.
-- Защита от повторной обработки webhook-событий.
-- Ограничение некорректных переходов статусов.
-
-#### Reports
-
-- Отчет по типу транзакции.
-
-#### Utility / Dev
-
-- TestController: health/status/echo.
-- DevController: topup, set-balance, seed, clear transactions, quick-register.
-
-#### Admin-like Firebase endpoints
-
-- UsersController: список/получение/удаление/disable пользователей.
-- RolesController: чтение/установка/удаление роли через custom claims.
-
-### 3.2 Frontend (основной клиент)
-
-#### Реально подключено к API
-
-- Login.
-- Register.
-- Protected routes (проверка JWT expiration).
-- Dashboard:
-  - общий баланс;
-  - последние транзакции;
-  - график оборота 7/30;
-  - распределение типов операций;
-  - API latency.
-- Transactions:
-  - таблица транзакций;
-  - фильтры;
-  - поиск;
-  - panel details.
-- Create payment:
-  - создание транзакции;
-  - создание payment intent;
-  - обновление статуса транзакции.
-
-#### Пока в режиме UI/имитации
-
-- Forgot password (setTimeout).
-- Verify email (setTimeout).
-- Reset password (setTimeout).
-- Profile (локальные данные).
-- Settings (локальные настройки).
-
-### 3.3 Design-стенд
-
-- Отдельный фронт с моками и визуальным направлением.
-- Используется как полигон UX/UI, но может расходиться с рабочим клиентом.
+| Набор | Кол-во | Статус |
+|-------|--------|--------|
+| Unit тесты (xUnit + Moq) | 99 | ✅ Все проходят |
+| Integration тесты (WebApplicationFactory) | 18 | ✅ Все проходят |
+| E2E тесты (Playwright/Cypress) | 0 | ❌ Не реализовано |
+| Frontend тесты | 0 | ❌ Не реализовано |
 
 ---
 
-## 4. Текущие проблемы и пробелы
+## 3. Открытые задачи
 
-### 4.1 Функциональные
+### P0 (критично для thesis)
 
-- Нет полного пользовательского flow восстановления пароля через backend.
-- Нет полноценного flow подтверждения email через backend.
-- Profile/Settings не подключены к реальному API.
-- UI для управления счетами неполный относительно возможностей backend.
+| # | Задача | Детали |
+|---|--------|--------|
+| 1 | **Тренировка ML модели** | Скачать Kaggle CSV → `dotnet run --project src/FinTechAPI.MlTrainer` → скопировать ONNX в Infrastructure |
+| 2 | **Fraud UI — ML поля** | Отобразить `mlAnomalyScore`, `mlModelVersion` в FraudDashboard, FraudCases, FraudCaseDetails |
 
-### 4.2 Продуктовые
+### P1 (высокий приоритет)
 
-- Два фронтенда (Client и Design) создают риск расхождения.
-- Часть UX из концепта (fraud/risk/webhook visibility) не доведена до production UI.
-
-### 4.3 Технические
-
-- Нужно усилить единообразие ошибок API и контрактов для фронта.
-- Нужно расширить автоматические тесты на критические end-to-end цепочки.
-- Dev-конфиг требует аккуратной работы с чувствительными значениями.
-
----
-
-## 5. Видение редизайна
-
-### 5.1 UX-принципы
-
-- Trust-first визуальный язык.
-- Максимальная прозрачность статусов платежа и риска.
-- Простые и быстрые сценарии для ежедневных операций.
-- Единая дизайн-система между всеми экранами.
-
-### 5.2 Что обязательно улучшить
-
-- Информационная архитектура и навигация.
-- Сценарий создания платежа (включая ошибки и recovery).
-- Сценарий просмотра транзакций и аналитики.
-- Сценарий аккаунта пользователя (профиль, безопасность, сессии).
-- Адаптивность и доступность.
-
----
-
-## 6. Большой план работ (roadmap)
-
-### Этап A — Baseline и синхронизация
-
-- Зафиксировать "as-is" по backend/frontend/design.
-- Выбрать основной источник UI-правды (single source of truth).
-- Согласовать финальный scope на редизайн.
-
-### Этап B — Проектирование UX и структуры
-
-- Сформировать карту экранов и user flows.
-- Утвердить состояния: loading/empty/error/success.
-- Утвердить wireframes и контент-иерархию.
-
-### Этап C — Функциональное закрытие пробелов
-
-- Реализовать forgot/reset/verify на backend и frontend.
-- Подключить Profile/Settings к API.
-- Расширить UI управления счетами.
-- Добавить отображение жизненного цикла платежа.
-
-### Этап D — Визуальный редизайн и унификация компонентов
-
-- Консолидировать токены, компоненты и паттерны.
-- Упростить/очистить зависимостный хвост UI-библиотек.
-- Провести визуальную полировку и адаптив.
-
-### Этап E — Качество, тестирование, выпуск
-
-- Интеграционные и e2e тесты критических потоков.
-- Performance и security check.
-- Release checklist и rollout план.
-
----
-
-## 7. Приоритетный backlog (стартовая версия)
-
-### P0 (критично)
-
-- Реальный backend flow: Forgot Password / Reset Password / Verify Email.
-- Подключение frontend auth recovery к backend API.
-- Унификация ошибок API и обработка на фронте.
-- Зафиксировать и внедрить единый источник UI (Client vs Design).
-
-### P1 (высокий)
-
-- API + UI для Profile.
-- API + UI для Settings (безопасность, сессии, предпочтения).
-- Полный UI управления счетами.
-- Улучшение экрана платежей: больше прозрачности по status timeline.
+| # | Задача | Детали |
+|---|--------|--------|
+| 3 | **Унификация ошибок API** | Внедрить RFC 7807 Problem Details middleware. Сейчас контроллеры возвращают разные форматы |
+| 4 | **Design-стенд синхронизация** | Design/* расходится с Client — settings/profile только моки. Решение: Design = только UI showcase, Client = production |
 
 ### P2 (средний)
 
-- Расширенная аналитика dashboard.
-- Админ-панель для users/roles (при необходимости).
-- Улучшение международной локализации и доступности.
+| # | Задача | Детали |
+|---|--------|--------|
+| 5 | **E2E тесты** | Playwright для критических flows (auth, payment, fraud) |
+| 6 | **Help page** | Заменить статический FAQ на реальный контент или убрать |
+| 7 | **i18n** | Нет фреймворка локализации, только hardcoded en-US |
+| 8 | **Выделенная админ-панель** | Admin-функции встроены в Settings, нет отдельного UI |
 
 ---
 
-## 8. Черновик декомпозиции на спринты
+## 4. Definition of Done
 
-### Sprint 1
-
-- Утверждение IA и целевого scope.
-- Контракты API для auth recovery.
-- Технический дизайн profile/settings API.
-
-### Sprint 2
-
-- Реализация backend для auth recovery + тесты.
-- Подключение frontend auth recovery.
-
-### Sprint 3
-
-- Реализация profile/settings backend + frontend.
-- Стабилизация UX и обработка ошибок.
-
-### Sprint 4
-
-- Управление счетами (полный UI + интеграция).
-- Платежный статус timeline + прозрачность webhook.
-
-### Sprint 5
-
-- Редизайн dashboard/transactions/create-payment.
-- Полировка адаптива, доступности, производительности.
-
-### Sprint 6
-
-- E2E критических сценариев.
-- Регрессия, фиксы, релизная подготовка.
+- Реализовано по спецификации.
+- Обработка edge-cases и ошибок.
+- Тесты (unit/integration — по уровню задачи).
+- Нет регрессии (99 unit + 18 integration pass).
 
 ---
 
-## 9. Definition of Done (для задач)
+## 5. Правила ведения этого файла
 
-- Реализовано по UX-спеку.
-- Есть обработка edge-cases и ошибок.
-- Есть тесты (unit/integration/e2e — по уровню задачи).
-- Есть обновленная документация.
-- Нет регрессии в ключевых сценариях.
-
----
-
-## 10. Правила ведения этого файла
-
-- Любое изменение scope фиксируем здесь в день изменения.
-- Новые блокеры добавляем отдельным разделом с датой.
-- После каждого спринта: что планировали / что сделали / что переносим.
+- Любое изменение scope фиксируем с датой.
+- После завершения задачи: перемещаем из §3 в §2.
+- Устаревшие разделы удаляем, не накапливаем.
 - Не удаляем исторические решения, а переносим в раздел "Архив решений".
 
 ---

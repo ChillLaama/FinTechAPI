@@ -12,7 +12,7 @@
     <PackageReference Include="Google.Cloud.Firestore" Version="3.7.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.5" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.5" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.17.3" />
+    <PackageReference Include="Microsoft.ML" Version="3.0.1" />
     <PackageReference Include="Stripe.net" Version="49.0.0" />
   </ItemGroup>
 
@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="ML\Models\*.onnx" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ML\Models\*.zip" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

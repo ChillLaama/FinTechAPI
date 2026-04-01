@@ -7,7 +7,6 @@ import {
   FolderOpen,
   Activity,
   Settings,
-  Bell,
   User,
   LogOut,
   Shield,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { NotificationBell } from "./NotificationBell";
 
 export function Layout() {
   const location = useLocation();
@@ -103,13 +103,7 @@ export function Layout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button
-              className="relative p-2 rounded-lg hover:bg-secondary transition-colors"
-              title="Notifications — coming soon"
-              disabled
-            >
-              <Bell className="w-5 h-5 text-muted-foreground opacity-50" />
-            </button>
+            <NotificationBell />
 
             <div className="relative pl-4 border-l border-border">
               <button

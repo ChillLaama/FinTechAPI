@@ -21,3 +21,11 @@ src/FinTechAPI.API/appsettings.Development.json
 
 # ML training data (too large for git)
 data/*.csv
+
+# Thesis / bachelor's work documents
+docs/bakalaura_darbs.docx
+scripts/generate_thesis.py
+__pycache__/
+*.pyc
+docs/Norādījumi.pdf
+docs/noradijumi.md

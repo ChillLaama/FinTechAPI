@@ -43,6 +43,8 @@ namespace FinTechAPI.Application.DTOs
 
         public string Theme { get; set; } = "dark";
         public string Language { get; set; } = "en";
+        public string DefaultCurrency { get; set; } = "usd";
+        public bool TransactionNotifications { get; set; } = true;
 
         public bool PublicProfile { get; set; }
         public bool ShowActivity { get; set; } = true;
@@ -66,6 +68,8 @@ namespace FinTechAPI.Application.DTOs
 
         public string Theme { get; set; } = "dark";
         public string Language { get; set; } = "en";
+        public string DefaultCurrency { get; set; } = "usd";
+        public bool TransactionNotifications { get; set; } = true;
 
         public bool PublicProfile { get; set; }
         public bool ShowActivity { get; set; } = true;

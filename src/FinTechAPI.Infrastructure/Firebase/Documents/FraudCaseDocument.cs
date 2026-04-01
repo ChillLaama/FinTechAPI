@@ -41,6 +41,12 @@ namespace FinTechAPI.Infrastructure.Firebase.Documents
         [FirestoreProperty("rulesTriggered")]
         public List<string> RulesTriggered { get; set; } = new();
 
+        [FirestoreProperty("mlAnomalyScore")]
+        public double? MlAnomalyScore { get; set; }
+
+        [FirestoreProperty("mlModelVersion")]
+        public string? MlModelVersion { get; set; }
+
         [FirestoreProperty("analystNotes")]
         public string? AnalystNotes { get; set; }
 

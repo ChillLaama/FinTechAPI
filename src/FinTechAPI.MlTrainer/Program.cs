@@ -4,13 +4,35 @@ using Microsoft.ML.Data;
 using Microsoft.ML.Trainers.FastTree;
 using FinTechAPI.MlTrainer;
 
-const string CsvPath = "../../data/Fraud.csv";
+// Resolve repo root: walk up from the executable directory until we find FinTechAPI.sln
+static string FindRepoRoot()
+{
+    var dir = AppContext.BaseDirectory;
+    while (dir != null)
+    {
+        if (File.Exists(Path.Combine(dir, "FinTechAPI.sln")))
+            return dir;
+        dir = Directory.GetParent(dir)?.FullName;
+    }
+    // Fallback: try working directory
+    dir = Directory.GetCurrentDirectory();
+    while (dir != null)
+    {
+        if (File.Exists(Path.Combine(dir, "FinTechAPI.sln")))
+            return dir;
+        dir = Directory.GetParent(dir)?.FullName;
+    }
+    return Directory.GetCurrentDirectory();
+}
+
+var repoRoot = FindRepoRoot();
+var csvPath = Path.Combine(repoRoot, "data", "Fraud.csv");
 const string ModelsDir = "models";
 
-if (!File.Exists(CsvPath))
+if (!File.Exists(csvPath))
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"ERROR: Dataset not found at '{Path.GetFullPath(CsvPath)}'.");
+    Console.WriteLine($"ERROR: Dataset not found at '{csvPath}'.");
     Console.WriteLine("Download Fraud.csv from https://www.kaggle.com/datasets/chitwanmanchanda/fraudulent-transactions-data");
     Console.WriteLine("and place it in the data/ folder at the repository root.");
     Console.ResetColor();
@@ -25,7 +47,7 @@ var mlContext = new MLContext(seed: 42);
 Console.WriteLine("Loading dataset...");
 var sw = Stopwatch.StartNew();
 var dataView = mlContext.Data.LoadFromTextFile<FraudTransactionData>(
-    CsvPath, hasHeader: true, separatorChar: ',');
+    csvPath, hasHeader: true, separatorChar: ',');
 
 var split = mlContext.Data.TrainTestSplit(dataView, testFraction: 0.2, seed: 42);
 sw.Stop();
@@ -38,21 +60,9 @@ Console.WriteLine("\nBuilding feature pipeline...");
 
 var featurePipeline = mlContext.Transforms.Categorical
     .OneHotEncoding("TypeEncoded", "Type")
-    .Append(mlContext.Transforms.CustomMapping<FraudTransactionData, ComputedFeatures>(
-        (input, output) =>
-        {
-            output.BalanceDeltaOrg = input.OldBalanceOrg - input.NewBalanceOrig;
-            output.BalanceDeltaDest = input.NewBalanceDest - input.OldBalanceDest;
-            output.AmountToBalanceRatio = input.OldBalanceOrg > 0
-                ? input.Amount / input.OldBalanceOrg
-                : input.Amount;
-            output.HourOfDay = input.Step % 24;
-        },
-        contractName: "ComputeFeatures"))
     .Append(mlContext.Transforms.Concatenate("Features",
         "Amount", "TypeEncoded", "OldBalanceOrg", "NewBalanceOrig",
-        "OldBalanceDest", "NewBalanceDest",
-        "BalanceDeltaOrg", "BalanceDeltaDest", "AmountToBalanceRatio", "HourOfDay"))
+        "OldBalanceDest", "NewBalanceDest", "Step"))
     .Append(mlContext.Transforms.NormalizeMinMax("Features"));
 
 // ── 3. Model A: FastTree (supervised binary classification) ──────────────
@@ -90,11 +100,20 @@ mlContext.Model.Save(fastTreeModel, split.TrainSet.Schema, fastTreeZipPath);
 Console.WriteLine($"  Saved: {fastTreeZipPath}");
 
 var fastTreeOnnxPath = Path.Combine(ModelsDir, "fraud_fasttree.onnx");
-using (var onnxStream = File.Create(fastTreeOnnxPath))
+try
 {
+    using var onnxStream = File.Create(fastTreeOnnxPath);
     mlContext.Model.ConvertToOnnx(fastTreeModel, split.TrainSet, onnxStream);
+    Console.WriteLine($"  Saved: {fastTreeOnnxPath} ({new FileInfo(fastTreeOnnxPath).Length / 1024} KB)");
 }
-Console.WriteLine($"  Saved: {fastTreeOnnxPath} ({new FileInfo(fastTreeOnnxPath).Length / 1024} KB)");
+catch (Exception ex)
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine($"  ONNX export skipped (ML.NET converter limitation): {ex.Message}");
+    Console.WriteLine($"  Using .zip model for inference instead.");
+    Console.ResetColor();
+    if (File.Exists(fastTreeOnnxPath)) File.Delete(fastTreeOnnxPath);
+}
 
 // ── 4. Model B: RandomizedPCA (unsupervised anomaly detection) ───────────
 Console.WriteLine("\n══════════════════════════════════════════════════");
@@ -115,7 +134,11 @@ Console.WriteLine($"Training completed in {sw.Elapsed.TotalSeconds:F1}s");
 
 Console.WriteLine("Evaluating PCA...");
 var pcaPredictions = pcaModel.Transform(split.TestSet);
-var pcaMetrics = mlContext.AnomalyDetection.Evaluate(pcaPredictions, labelColumnName: "Label");
+// Anomaly evaluator requires Label as Single (float), not Boolean
+var labelAsFloat = mlContext.Transforms.Conversion
+    .ConvertType("Label", outputKind: DataKind.Single)
+    .Fit(pcaPredictions).Transform(pcaPredictions);
+var pcaMetrics = mlContext.AnomalyDetection.Evaluate(labelAsFloat, labelColumnName: "Label");
 
 Console.WriteLine($"  AUC:                       {pcaMetrics.AreaUnderRocCurve:F4}");
 Console.WriteLine($"  Detection rate at FP=10:   {pcaMetrics.DetectionRateAtFalsePositiveCount:F4}");
@@ -125,11 +148,20 @@ mlContext.Model.Save(pcaModel, split.TrainSet.Schema, pcaZipPath);
 Console.WriteLine($"  Saved: {pcaZipPath}");
 
 var pcaOnnxPath = Path.Combine(ModelsDir, "fraud_pca.onnx");
-using (var onnxStream = File.Create(pcaOnnxPath))
+try
 {
+    using var onnxStream = File.Create(pcaOnnxPath);
     mlContext.Model.ConvertToOnnx(pcaModel, split.TrainSet, onnxStream);
+    Console.WriteLine($"  Saved: {pcaOnnxPath} ({new FileInfo(pcaOnnxPath).Length / 1024} KB)");
 }
-Console.WriteLine($"  Saved: {pcaOnnxPath} ({new FileInfo(pcaOnnxPath).Length / 1024} KB)");
+catch (Exception ex)
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine($"  ONNX export skipped: {ex.Message}");
+    Console.WriteLine($"  Using .zip model for inference instead.");
+    Console.ResetColor();
+    if (File.Exists(pcaOnnxPath)) File.Delete(pcaOnnxPath);
+}
 
 // ── 5. Write evaluation report ───────────────────────────────────────────
 var reportPath = Path.Combine(ModelsDir, "evaluation_report.txt");
@@ -137,7 +169,7 @@ using (var writer = new StreamWriter(reportPath))
 {
     writer.WriteLine("FinTechAPI Fraud Detection — Model Evaluation Report");
     writer.WriteLine($"Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
-    writer.WriteLine($"Dataset:   {CsvPath}");
+    writer.WriteLine($"Dataset:   {csvPath}");
     writer.WriteLine(new string('═', 60));
 
     writer.WriteLine("\n## Model A: FastTree Binary Classification");
@@ -161,8 +193,8 @@ using (var writer = new StreamWriter(reportPath))
 Console.WriteLine($"\nReport saved: {reportPath}");
 
 Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine("\n✓ Training complete. Copy the .onnx file to:");
-Console.WriteLine("  src/FinTechAPI.Infrastructure/ML/Models/fraud_fasttree.onnx");
+Console.WriteLine("\n✓ Training complete. Copy the .zip file to:");
+Console.WriteLine("  src/FinTechAPI.Infrastructure/ML/Models/fraud_fasttree.zip");
 Console.ResetColor();
 
 return 0;
@@ -177,12 +209,4 @@ static void PrintBinaryMetrics(BinaryClassificationMetrics metrics)
     Console.WriteLine($"  F1 Score:    {metrics.F1Score:F4}");
     Console.WriteLine($"  Precision:   {metrics.PositivePrecision:F4}");
     Console.WriteLine($"  Recall:      {metrics.PositiveRecall:F4}");
-}
-
-public class ComputedFeatures
-{
-    public float BalanceDeltaOrg { get; set; }
-    public float BalanceDeltaDest { get; set; }
-    public float AmountToBalanceRatio { get; set; }
-    public float HourOfDay { get; set; }
 }

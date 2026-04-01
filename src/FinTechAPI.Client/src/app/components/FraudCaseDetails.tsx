@@ -9,6 +9,7 @@ import {
   Loader2,
   ArrowUpRight,
   UserCheck,
+  Brain,
 } from "lucide-react";
 import {
   getFraudCaseById,
@@ -258,6 +259,63 @@ export function FraudCaseDetails() {
             </p>
           </div>
         </div>
+
+        {/* ML anomaly score */}
+        {fraudCase.mlAnomalyScore != null && (
+          <div className="border-t border-border pt-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm flex items-center gap-2">
+                <Brain className="w-4 h-4 text-purple-500" />
+                ML anomaly score
+              </span>
+              {fraudCase.mlModelVersion && (
+                <span className="text-xs px-2 py-0.5 bg-purple-500/10 text-purple-500 rounded-full">
+                  {fraudCase.mlModelVersion}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    fraudCase.mlAnomalyScore >= 0.8
+                      ? "bg-red-500"
+                      : fraudCase.mlAnomalyScore >= 0.6
+                        ? "bg-orange-500"
+                        : fraudCase.mlAnomalyScore >= 0.4
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
+                  }`}
+                  style={{
+                    width: `${Math.round(fraudCase.mlAnomalyScore * 100)}%`,
+                  }}
+                />
+              </div>
+              <span
+                className={`text-sm font-semibold tabular-nums ${
+                  fraudCase.mlAnomalyScore >= 0.8
+                    ? "text-red-500"
+                    : fraudCase.mlAnomalyScore >= 0.6
+                      ? "text-orange-500"
+                      : fraudCase.mlAnomalyScore >= 0.4
+                        ? "text-yellow-500"
+                        : "text-green-500"
+                }`}
+              >
+                {(fraudCase.mlAnomalyScore * 100).toFixed(1)}%
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {fraudCase.mlAnomalyScore >= 0.8
+                ? "High risk — ML model flags this transaction as highly suspicious"
+                : fraudCase.mlAnomalyScore >= 0.6
+                  ? "Medium risk — ML model detected anomalous patterns"
+                  : fraudCase.mlAnomalyScore >= 0.4
+                    ? "Low risk — ML model detected minor anomalies"
+                    : "Normal — ML model considers this transaction safe"}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Triggered rules */}
@@ -310,6 +368,30 @@ export function FraudCaseDetails() {
                 {new Date(evaluation.createdAt).toLocaleString()}
               </p>
             </div>
+            {evaluation.mlAnomalyScore != null && (
+              <div>
+                <span className="text-muted-foreground">ML score</span>
+                <p
+                  className={`font-medium ${
+                    evaluation.mlAnomalyScore >= 0.8
+                      ? "text-red-500"
+                      : evaluation.mlAnomalyScore >= 0.6
+                        ? "text-orange-500"
+                        : evaluation.mlAnomalyScore >= 0.4
+                          ? "text-yellow-500"
+                          : "text-green-500"
+                  }`}
+                >
+                  {(evaluation.mlAnomalyScore * 100).toFixed(1)}%
+                </p>
+              </div>
+            )}
+            {evaluation.mlModelVersion && (
+              <div>
+                <span className="text-muted-foreground">ML model</span>
+                <p className="text-xs">{evaluation.mlModelVersion}</p>
+              </div>
+            )}
           </div>
         </div>
       )}

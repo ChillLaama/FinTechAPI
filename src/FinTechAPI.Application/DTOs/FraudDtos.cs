@@ -47,6 +47,8 @@ namespace FinTechAPI.Application.DTOs
         public string? Assignee { get; set; }
         public List<string> Reasons { get; set; } = new();
         public List<string> RulesTriggered { get; set; } = new();
+        public double? MlAnomalyScore { get; set; }
+        public string? MlModelVersion { get; set; }
         public string? AnalystNotes { get; set; }
         public string? ResolvedBy { get; set; }
         public DateTime? ResolvedAt { get; set; }
