@@ -711,9 +711,7 @@ export interface ApiNotification {
 }
 
 export function getNotifications(limit = 50) {
-  return apiRequest<ApiNotification[]>(
-    `/api/notifications?limit=${limit}`,
-  );
+  return apiRequest<ApiNotification[]>(`/api/notifications?limit=${limit}`);
 }
 
 export function getUnreadNotificationCount() {
@@ -730,5 +728,42 @@ export function markNotificationAsRead(notificationId: string) {
 export function markAllNotificationsAsRead() {
   return apiRequest<void>("/api/notifications/read-all", {
     method: "POST",
+  });
+}
+
+// ── User management (admin only) ────────────────────────────
+
+export interface ApiUserListItem {
+  uid: string;
+  email: string;
+  displayName: string;
+  disabled: boolean;
+}
+
+export interface ApiUserRole {
+  uid: string;
+  role: string | null;
+}
+
+export function getUsers(maxResults = 100) {
+  return apiRequest<ApiUserListItem[]>(
+    `/api/users?maxResults=${maxResults}`,
+  );
+}
+
+export function getUserRole(uid: string) {
+  return apiRequest<ApiUserRole>(`/api/roles/${encodeURIComponent(uid)}`);
+}
+
+export function setUserRole(uid: string, role: string) {
+  return apiRequest<ApiUserRole>(`/api/roles/${encodeURIComponent(uid)}`, {
+    method: "POST",
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function removeUserRole(uid: string) {
+  return apiRequest<void>(`/api/roles/${encodeURIComponent(uid)}`, {
+    method: "DELETE",
   });
 }

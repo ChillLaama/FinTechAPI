@@ -11,6 +11,7 @@ import {
   LogOut,
   Shield,
   BarChart3,
+  UsersRound,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
@@ -30,6 +31,8 @@ export function Layout() {
     : "User";
   const displayEmail = user?.email ?? "";
 
+  const isAdmin = user?.role.toLowerCase() === "admin";
+
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/transactions", label: "Transactions", icon: CreditCard },
@@ -38,6 +41,9 @@ export function Layout() {
     { path: "/accounts", label: "Account profiles", icon: FolderOpen },
     { path: "/fraud-cases", label: "Fraud cases", icon: Shield },
     { path: "/fraud-dashboard", label: "Fraud monitoring", icon: BarChart3 },
+    ...(isAdmin
+      ? [{ path: "/user-management", label: "User management", icon: UsersRound }]
+      : []),
   ];
 
   return (

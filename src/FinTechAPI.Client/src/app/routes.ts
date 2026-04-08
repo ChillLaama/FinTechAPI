@@ -22,6 +22,7 @@ import { Help } from "./components/Help";
 import { FraudCases } from "./components/FraudCases";
 import { FraudCaseDetails } from "./components/FraudCaseDetails";
 import { FraudDashboard } from "./components/FraudDashboard";
+import { UserRoleManager } from "./components/UserRoleManager";
 
 export const router = createBrowserRouter([
   {
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
               { path: "fraud-cases", Component: FraudCases },
               { path: "fraud-cases/:caseId", Component: FraudCaseDetails },
               { path: "fraud-dashboard", Component: FraudDashboard },
+              { path: "user-management", Component: UserRoleManager },
             ],
           },
         ],

@@ -59,16 +59,16 @@ namespace FinTechAPI.Infrastructure.Services
                 .OrderByDescending(n => n.CreatedAt)
                 .Take(limit)
                 .Select(n => new NotificationDto
-                    {
-                        Id = n.Id,
-                        Type = n.Type,
-                        Title = n.Title,
-                        Message = n.Message,
-                        EntityType = n.EntityType,
-                        EntityId = n.EntityId,
-                        IsRead = n.IsRead,
-                        CreatedAt = n.CreatedAt.ToDateTime()
-                    })
+                {
+                    Id = n.Id,
+                    Type = n.Type,
+                    Title = n.Title,
+                    Message = n.Message,
+                    EntityType = n.EntityType,
+                    EntityId = n.EntityId,
+                    IsRead = n.IsRead,
+                    CreatedAt = n.CreatedAt.ToDateTime()
+                })
                 .ToList();
         }
 

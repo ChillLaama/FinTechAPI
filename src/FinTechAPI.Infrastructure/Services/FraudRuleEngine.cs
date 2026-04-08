@@ -69,12 +69,10 @@ namespace FinTechAPI.Infrastructure.Services
             totalScore += highAmountScore;
 
             // ── Rule 5: ML anomaly detection (ONNX) ──────────────────
-            double? mlAnomalyScore = null;
-            string? mlModelVersion = null;
             var mlScore = await EvaluateMlRuleAsync(amountMinorUnits, reasons, rulesTriggered);
             totalScore += mlScore.Points;
-            mlAnomalyScore = mlScore.AnomalyScore;
-            mlModelVersion = mlScore.ModelVersion;
+            double? mlAnomalyScore = mlScore.AnomalyScore;
+            string? mlModelVersion = mlScore.ModelVersion;
 
             // Cap at 100
             totalScore = Math.Min(totalScore, 100);
@@ -173,11 +171,14 @@ namespace FinTechAPI.Infrastructure.Services
 
         private async Task<int> EvaluateVelocityRuleAsync(string userId, List<string> reasons, List<string> rulesTriggered)
         {
-            var cutoff = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(-VelocityWindowMinutes));
-            var recentPayments = await _firestore.Payments
+            var cutoff = DateTime.UtcNow.AddMinutes(-VelocityWindowMinutes);
+            var allPayments = await _firestore.Payments
                 .WhereEqualTo("userId", userId)
-                .WhereGreaterThanOrEqualTo("createdAt", cutoff)
                 .GetSnapshotAsync();
+            var recentPayments = allPayments.Documents
+                .Select(d => d.ConvertTo<PaymentDocument>())
+                .Where(p => p.CreatedAt.ToDateTime() >= cutoff)
+                .ToList();
 
             if (recentPayments.Count >= VelocityMaxPayments)
             {
@@ -186,22 +187,26 @@ namespace FinTechAPI.Infrastructure.Services
                 return VelocityScoreContribution;
             }
 
+
             return 0;
         }
 
         private async Task<int> EvaluateAmountAnomalyRuleAsync(string userId, long amountMinorUnits, List<string> reasons, List<string> rulesTriggered)
         {
             // Get the user's recent payments to compute average
-            var recentPayments = await _firestore.Payments
+            var allUserPayments = await _firestore.Payments
                 .WhereEqualTo("userId", userId)
-                .OrderByDescending("createdAt")
-                .Limit(20)
                 .GetSnapshotAsync();
+            var recentAmounts = allUserPayments.Documents
+                .Select(d => d.ConvertTo<PaymentDocument>())
+                .OrderByDescending(p => p.CreatedAt)
+                .Take(20)
+                .ToList();
 
-            if (recentPayments.Count < 3) return 0; // Not enough history
+            if (recentAmounts.Count < 3) return 0; // Not enough history
 
-            var amounts = recentPayments.Documents
-                .Select(d => d.ConvertTo<PaymentDocument>().AmountMinorUnits)
+            var amounts = recentAmounts
+                .Select(p => p.AmountMinorUnits)
                 .ToList();
 
             var average = amounts.Average();
@@ -220,14 +225,14 @@ namespace FinTechAPI.Infrastructure.Services
 
         private async Task<int> EvaluateRepeatedFailureRuleAsync(string userId, List<string> reasons, List<string> rulesTriggered)
         {
-            var cutoff = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(-RepeatedFailureWindowMinutes));
-            var recentPayments = await _firestore.Payments
+            var cutoff = DateTime.UtcNow.AddMinutes(-RepeatedFailureWindowMinutes);
+            var allRecentPayments = await _firestore.Payments
                 .WhereEqualTo("userId", userId)
-                .WhereGreaterThanOrEqualTo("createdAt", cutoff)
                 .GetSnapshotAsync();
 
-            var failedCount = recentPayments.Documents
+            var failedCount = allRecentPayments.Documents
                 .Select(d => d.ConvertTo<PaymentDocument>())
+                .Where(p => p.CreatedAt.ToDateTime() >= cutoff)
                 .Count(p => string.Equals(p.Status, "canceled", StringComparison.OrdinalIgnoreCase)
                          || string.Equals(p.Status, "requires_payment_method", StringComparison.OrdinalIgnoreCase));
 

@@ -1,10 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Check, CheckCheck, ShieldAlert, CreditCard, AlertTriangle } from "lucide-react";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "./ui/popover";
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  startTransition,
+} from "react";
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  ShieldAlert,
+  CreditCard,
+  AlertTriangle,
+} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
   getNotifications,
   getUnreadNotificationCount,
@@ -24,9 +33,7 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
 };
 
 function timeAgo(dateStr: string): string {
-  const seconds = Math.floor(
-    (Date.now() - new Date(dateStr).getTime()) / 1000,
-  );
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -42,32 +49,35 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const { count } = await getUnreadNotificationCount();
-      setUnreadCount(count);
-    } catch {
-      // silent — polling should not disrupt UX
-    }
-  }, []);
-
   const fetchNotifications = useCallback(async () => {
     try {
       const data = await getNotifications(30);
-      setNotifications(data);
-      setUnreadCount(data.filter((n) => !n.isRead).length);
+      startTransition(() => {
+        setNotifications(data);
+        setUnreadCount(data.filter((n) => !n.isRead).length);
+      });
     } catch {
       // silent
     }
   }, []);
 
   useEffect(() => {
-    fetchUnreadCount();
-    intervalRef.current = setInterval(fetchUnreadCount, POLL_INTERVAL);
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const { count } = await getUnreadNotificationCount();
+        if (!cancelled) startTransition(() => setUnreadCount(count));
+      } catch {
+        // silent — polling should not disrupt UX
+      }
+    };
+    poll();
+    intervalRef.current = setInterval(poll, POLL_INTERVAL);
     return () => {
+      cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [fetchUnreadCount]);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {

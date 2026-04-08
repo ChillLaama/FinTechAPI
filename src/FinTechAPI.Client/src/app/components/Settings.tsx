@@ -372,4 +372,3 @@ export function Settings() {
     </div>
   );
 }
-
