@@ -86,9 +86,7 @@ export function UserRoleManager() {
         }),
       );
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load users",
-      );
+      setError(err instanceof Error ? err.message : "Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -98,14 +96,11 @@ export function UserRoleManager() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleRoleChange = useCallback(
-    (uid: string, value: Role) => {
-      setRows((prev) =>
-        prev.map((r) => (r.uid === uid ? { ...r, pendingRole: value } : r)),
-      );
-    },
-    [],
-  );
+  const handleRoleChange = useCallback((uid: string, value: Role) => {
+    setRows((prev) =>
+      prev.map((r) => (r.uid === uid ? { ...r, pendingRole: value } : r)),
+    );
+  }, []);
 
   const handleApply = useCallback(
     async (uid: string) => {
@@ -149,10 +144,16 @@ export function UserRoleManager() {
     [rows],
   );
 
-  const isSelfRow = useCallback((uid: string) => uid === currentUid, [currentUid]);
+  const isSelfRow = useCallback(
+    (uid: string) => uid === currentUid,
+    [currentUid],
+  );
 
   const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => (isSelfRow(a.uid) ? -1 : isSelfRow(b.uid) ? 1 : 0)),
+    () =>
+      [...rows].sort((a, b) =>
+        isSelfRow(a.uid) ? -1 : isSelfRow(b.uid) ? 1 : 0,
+      ),
     [rows, isSelfRow],
   );
 
@@ -165,9 +166,7 @@ export function UserRoleManager() {
   }
 
   if (loading) {
-    return (
-      <div className="text-muted-foreground">Loading users...</div>
-    );
+    return <div className="text-muted-foreground">Loading users...</div>;
   }
 
   if (error) {
@@ -187,8 +186,8 @@ export function UserRoleManager() {
         <div>
           <h1 className="text-3xl mb-2">User role management</h1>
           <p className="text-muted-foreground">
-            Assign Firebase custom claim roles. Users must re-login after a
-            role change.
+            Assign Firebase custom claim roles. Users must re-login after a role
+            change.
           </p>
         </div>
         <button
@@ -209,7 +208,8 @@ export function UserRoleManager() {
         <div className="divide-y divide-border">
           {sortedRows.map((row) => {
             const isSelf = isSelfRow(row.uid);
-            const isDirty = row.pendingRole !== (row.role ?? "none") &&
+            const isDirty =
+              row.pendingRole !== (row.role ?? "none") &&
               !(row.pendingRole === "user" && row.role === null);
 
             return (
@@ -225,7 +225,9 @@ export function UserRoleManager() {
                       {row.displayName || row.email}
                     </p>
                     {isSelf && (
-                      <span className="text-xs text-muted-foreground">(you)</span>
+                      <span className="text-xs text-muted-foreground">
+                        (you)
+                      </span>
                     )}
                     {row.disabled && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-warning/15 text-warning">
@@ -311,17 +313,17 @@ export function UserRoleManager() {
       <div className="p-4 rounded-lg border border-border bg-secondary/30 text-sm text-muted-foreground space-y-1">
         <p className="font-medium text-foreground">How roles work</p>
         <p>
-          Roles are stored as Firebase custom claims. After assigning a new
-          role the user must sign out and back in — the browser token is
-          refreshed only on re-authentication.
+          Roles are stored as Firebase custom claims. After assigning a new role
+          the user must sign out and back in — the browser token is refreshed
+          only on re-authentication.
         </p>
         <p>
           <span className="text-destructive font-medium">admin</span> — full
           access, including this page.{" "}
           <span className="text-accent font-medium">analyst</span> — fraud
           review access.{" "}
-          <span className="text-secondary-foreground font-medium">user</span>{" "}
-          — standard access.
+          <span className="text-secondary-foreground font-medium">user</span> —
+          standard access.
         </p>
       </div>
     </div>

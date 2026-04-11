@@ -20,6 +20,7 @@ import {
   assignFraudCase,
 } from "../api/client";
 import type { ApiFraudCase, ApiFraudEvaluation } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 function statusColor(status: string): string {
   switch (status.toLowerCase()) {
@@ -62,6 +63,7 @@ function formatAmount(minorUnits: number, currency: string): string {
 export function FraudCaseDetails() {
   const { caseId } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [fraudCase, setFraudCase] = useState<ApiFraudCase | null>(null);
   const [evaluation, setEvaluation] = useState<ApiFraudEvaluation | null>(null);
@@ -92,6 +94,14 @@ export function FraudCaseDetails() {
   useEffect(() => {
     loadCase();
   }, [loadCase]);
+
+  if (user?.role.toLowerCase() !== "admin") {
+    return (
+      <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-sm">
+        Access denied. Admin role required.
+      </div>
+    );
+  }
 
   const handleAction = async (action: "approve" | "reject" | "escalate") => {
     if (!caseId) return;

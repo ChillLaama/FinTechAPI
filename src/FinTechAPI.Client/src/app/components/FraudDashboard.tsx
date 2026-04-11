@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { getFraudCases } from "../api/client";
 import type { ApiFraudCase } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 interface FraudStats {
   total: number;
@@ -105,6 +106,7 @@ function StatCard({
 
 export function FraudDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [allCases, setAllCases] = useState<ApiFraudCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +129,14 @@ export function FraudDashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  if (user?.role.toLowerCase() !== "admin") {
+    return (
+      <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-sm">
+        Access denied. Admin role required.
+      </div>
+    );
+  }
 
   const stats = computeStats(allCases);
 
@@ -246,7 +256,7 @@ export function FraudDashboard() {
           </div>
 
           {/* ML model stats */}
-          <div className="bg-card p-6 rounded-xl border border-border space-y-3">
+          <div className="bg-card p-6 rounded-xl border border-border space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium flex items-center gap-2">
                 <Brain className="w-5 h-5 text-purple-500" />
@@ -262,6 +272,8 @@ export function FraudDashboard() {
                 </span>
               )}
             </div>
+
+            {/* Runtime stats */}
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <span className="text-sm text-muted-foreground">
@@ -294,6 +306,37 @@ export function FraudDashboard() {
                       )}%`
                     : "—"}
                 </p>
+              </div>
+            </div>
+
+            {/* Training evaluation metrics */}
+            <div className="border-t border-border pt-4">
+              <p className="text-xs text-muted-foreground mb-3">
+                Training evaluation — FastTree Binary Classification ·{" "}
+                <span className="font-medium">284,807</span> samples (Kaggle
+                Credit Card Fraud Dataset) · Generated 2026-03-31
+              </p>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                {(
+                  [
+                    { label: "Accuracy", value: "99.97%" },
+                    { label: "AUC-ROC", value: "0.9976" },
+                    { label: "AUC-PR", value: "0.8513" },
+                    { label: "F1 Score", value: "0.8844" },
+                    { label: "Precision", value: "94.68%" },
+                    { label: "Recall", value: "82.98%" },
+                  ] as const
+                ).map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="bg-secondary/40 rounded-lg p-3 text-center"
+                  >
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="text-sm font-semibold text-purple-400 mt-0.5">
+                      {value}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

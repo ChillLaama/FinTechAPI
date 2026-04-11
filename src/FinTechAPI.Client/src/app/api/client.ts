@@ -746,9 +746,7 @@ export interface ApiUserRole {
 }
 
 export function getUsers(maxResults = 100) {
-  return apiRequest<ApiUserListItem[]>(
-    `/api/users?maxResults=${maxResults}`,
-  );
+  return apiRequest<ApiUserListItem[]>(`/api/users?maxResults=${maxResults}`);
 }
 
 export function getUserRole(uid: string) {

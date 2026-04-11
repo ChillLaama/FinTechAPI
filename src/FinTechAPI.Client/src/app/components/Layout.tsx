@@ -39,10 +39,16 @@ export function Layout() {
     { path: "/create-payment", label: "Create payment", icon: PlusCircle },
     { path: "/payouts", label: "Payouts", icon: Wallet },
     { path: "/accounts", label: "Account profiles", icon: FolderOpen },
-    { path: "/fraud-cases", label: "Fraud cases", icon: Shield },
-    { path: "/fraud-dashboard", label: "Fraud monitoring", icon: BarChart3 },
     ...(isAdmin
-      ? [{ path: "/user-management", label: "User management", icon: UsersRound }]
+      ? [
+          { path: "/fraud-cases", label: "Fraud cases", icon: Shield },
+          { path: "/fraud-dashboard", label: "Fraud monitoring", icon: BarChart3 },
+          {
+            path: "/user-management",
+            label: "User management",
+            icon: UsersRound,
+          },
+        ]
       : []),
   ];
 

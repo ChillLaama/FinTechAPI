@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getFraudCases } from "../api/client";
 import type { ApiFraudCase, ApiFraudCasePage } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 
 const statusOptions = [
   { value: "", label: "All statuses" },
@@ -63,6 +64,7 @@ function formatAmount(minorUnits: number, currency: string): string {
 
 export function FraudCases() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [page, setPage] = useState<ApiFraudCasePage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +95,14 @@ export function FraudCases() {
   useEffect(() => {
     loadCases();
   }, [loadCases]);
+
+  if (user?.role.toLowerCase() !== "admin") {
+    return (
+      <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-sm">
+        Access denied. Admin role required.
+      </div>
+    );
+  }
 
   const handleLoadMore = () => {
     if (page?.items.length) {
