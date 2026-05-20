@@ -12,6 +12,11 @@
 firebase-service-account.json
 src/FinTechAPI.API/appsettings_Dev.json
 
+# Environment files (may contain secrets/keys)
+.env
+.env.*
+!.env.example
+
 # Old monolith project (deprecated)
 /FinTechAPI/
 /FinTechAPI_Tests/

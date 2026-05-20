@@ -42,7 +42,11 @@ export function Layout() {
     ...(isAdmin
       ? [
           { path: "/fraud-cases", label: "Fraud cases", icon: Shield },
-          { path: "/fraud-dashboard", label: "Fraud monitoring", icon: BarChart3 },
+          {
+            path: "/fraud-dashboard",
+            label: "Fraud monitoring",
+            icon: BarChart3,
+          },
           {
             path: "/user-management",
             label: "User management",

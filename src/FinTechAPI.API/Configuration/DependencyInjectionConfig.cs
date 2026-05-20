@@ -138,6 +138,16 @@ public static class DependencyInjectionConfig
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = 429;
+            // Default policy for all endpoints: 100 requests per minute
+            options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+                System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                    ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+                    _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 100,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    }));
             options.AddFixedWindowLimiter("fixed", limiter =>
             {
                 limiter.PermitLimit = 100;
