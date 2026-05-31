@@ -24,6 +24,10 @@ src/FinTechAPI.API/appsettings_Dev.json
 src/FinTechAPI.API/appsettings.Development.json
 .gitignore
 
+# Coverage reports
+coveragereport/
+coveragereport_filtered/
+
 # ML training data (too large for git)
 data/*.csv
 
@@ -31,6 +35,10 @@ data/*.csv
 docs/
 
 # Python
-scripts/generate_thesis.py
 __pycache__/
 *.pyc
+
+# Scripts (local only)
+scripts/
+temp_search_script.py
+
