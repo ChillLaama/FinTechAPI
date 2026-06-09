@@ -72,6 +72,7 @@ namespace FinTechAPI.Infrastructure.Services
             var firestore = scope.ServiceProvider.GetRequiredService<FirestoreProvider>();
             var stripeSettings = scope.ServiceProvider.GetRequiredService<IOptions<StripeSettings>>().Value;
             var auditService = scope.ServiceProvider.GetRequiredService<IAuditService>();
+            var systemAlertService = scope.ServiceProvider.GetRequiredService<ISystemAlertService>();
 
             if (string.IsNullOrEmpty(stripeSettings.ApiKey))
             {
@@ -79,8 +80,8 @@ namespace FinTechAPI.Infrastructure.Services
                 return;
             }
 
-            var paymentsReconciled = await ReconcilePendingPaymentsAsync(firestore, ct);
-            var payoutsReconciled = await ReconcilePendingPayoutsAsync(firestore, ct);
+            var paymentsReconciled = await ReconcilePendingPaymentsAsync(firestore, systemAlertService, ct);
+            var payoutsReconciled = await ReconcilePendingPayoutsAsync(firestore, systemAlertService, ct);
 
             if (paymentsReconciled > 0 || payoutsReconciled > 0)
             {
@@ -93,7 +94,7 @@ namespace FinTechAPI.Infrastructure.Services
             }
         }
 
-        private async Task<int> ReconcilePendingPaymentsAsync(FirestoreProvider firestore, CancellationToken ct)
+        private async Task<int> ReconcilePendingPaymentsAsync(FirestoreProvider firestore, ISystemAlertService systemAlertService, CancellationToken ct)
         {
             // Query payments older than 2 minutes that aren't in terminal status
             var cutoff = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(-2));
@@ -131,6 +132,18 @@ namespace FinTechAPI.Infrastructure.Services
                     _logger.LogInformation(
                         "Background reconciliation updated payment. PaymentId={PaymentId}, {PreviousStatus}→{NewStatus}",
                         payment.Id, previousStatus, payment.Status);
+
+                    // Create system alert for significant status changes
+                    if (string.Equals(intent.Status, "canceled", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(intent.Status, "requires_payment_method", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await systemAlertService.CreateAsync(
+                            "reconciliation_mismatch",
+                            "Payment status mismatch resolved",
+                            $"Payment {payment.Id} was stuck in '{previousStatus}' — reconciled to '{intent.Status}' via background check.",
+                            "warning",
+                            "payment", payment.Id);
+                    }
                 }
                 catch (StripeException ex)
                 {
@@ -141,7 +154,7 @@ namespace FinTechAPI.Infrastructure.Services
             return reconciled;
         }
 
-        private async Task<int> ReconcilePendingPayoutsAsync(FirestoreProvider firestore, CancellationToken ct)
+        private async Task<int> ReconcilePendingPayoutsAsync(FirestoreProvider firestore, ISystemAlertService systemAlertService, CancellationToken ct)
         {
             var cutoff = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(-2));
             var snapshot = await firestore.Payouts
@@ -203,6 +216,17 @@ namespace FinTechAPI.Infrastructure.Services
                     _logger.LogInformation(
                         "Background reconciliation updated payout. PayoutId={PayoutId}, {PreviousStatus}→{NewStatus}",
                         payoutDoc.Id, previousStatus, payoutDoc.Status);
+
+                    // Alert on failed payouts
+                    if (string.Equals(payoutDoc.Status, "failed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await systemAlertService.CreateAsync(
+                            "payout_failed",
+                            "Payout failed during reconciliation",
+                            $"Payout {payoutDoc.Id} failed during background reconciliation. Code: {payoutDoc.FailureCode ?? "unknown"}.",
+                            "critical",
+                            "payout", payoutDoc.Id);
+                    }
                 }
                 catch (StripeException ex)
                 {

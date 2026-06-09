@@ -9,5 +9,10 @@ namespace FinTechAPI.Application.Interfaces
         Task<IEnumerable<PaymentDto>> GetPaymentsByUserIdAsync(string userId);
         Task<PaymentDto?> ReconcilePaymentAsync(string paymentId, string userId);
         Task<bool> HandleStripeWebhookAsync(string payload, string signatureHeader);
+
+        /// <summary>Returns payments that are in a non-terminal, potentially stuck state (admin-only view).</summary>
+        Task<IReadOnlyList<PendingPaymentDto>> GetPendingPaymentsForAdminAsync(int staleAfterMinutes = 5, int limit = 100);
     }
 }
+
+

@@ -31,3 +31,4 @@ namespace FinTechAPI.Application.DTOs
         public string AccountId { get; set; } = string.Empty;
     }
 }
+

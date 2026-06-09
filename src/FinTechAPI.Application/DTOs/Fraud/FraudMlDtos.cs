@@ -22,3 +22,4 @@ namespace FinTechAPI.Application.DTOs
         public long InferenceTimeMs { get; set; }
     }
 }
+

@@ -9,3 +9,4 @@ namespace FinTechAPI.Application.DTOs
         public DateTime SyncedAt { get; set; }
     }
 }
+

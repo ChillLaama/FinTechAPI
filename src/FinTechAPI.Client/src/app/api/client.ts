@@ -765,3 +765,122 @@ export function removeUserRole(uid: string) {
     method: "DELETE",
   });
 }
+
+// ── Admin: Audit Log ────────────────────────────────────────
+
+export interface ApiAuditLog {
+  id: string;
+  userId: string;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  details?: string | null;
+  correlationId?: string | null;
+  timestamp: string;
+}
+
+export function getAuditLogs(params?: {
+  userId?: string;
+  entityType?: string;
+  action?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params?.userId) query.set("userId", params.userId);
+  if (params?.entityType) query.set("entityType", params.entityType);
+  if (params?.action) query.set("action", params.action);
+  if (params?.from) query.set("from", params.from);
+  if (params?.to) query.set("to", params.to);
+  if (params?.limit) query.set("limit", String(params.limit));
+  const qs = query.toString();
+  return apiRequest<ApiAuditLog[]>(`/api/admin/audit-logs${qs ? `?${qs}` : ""}`);
+}
+
+// ── Admin: System Alerts ────────────────────────────────────
+
+export interface ApiSystemAlert {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  severity: "info" | "warning" | "critical";
+  isDismissed: boolean;
+  entityType?: string | null;
+  entityId?: string | null;
+  createdAt: string;
+}
+
+export function getSystemAlerts(limit = 50) {
+  return apiRequest<ApiSystemAlert[]>(`/api/admin/alerts?limit=${limit}`);
+}
+
+export function dismissSystemAlert(alertId: string) {
+  return apiRequest<void>(
+    `/api/admin/alerts/${encodeURIComponent(alertId)}/dismiss`,
+    { method: "POST" },
+  );
+}
+
+// ── Admin: Reconciliation ───────────────────────────────────
+
+export interface ApiReconciliationSummary {
+  pendingPaymentsCount: number;
+  stuckPaymentsCount: number;
+  totalPaymentsCount: number;
+  generatedAt: string;
+}
+
+export interface ApiPendingPayment {
+  id: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  stripePaymentIntentId: string;
+  lastWebhookEvent?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  staleMinutes: number;
+}
+
+export function getReconciliationSummary(staleAfterMinutes = 5) {
+  return apiRequest<ApiReconciliationSummary>(
+    `/api/admin/reconciliation/summary?staleAfterMinutes=${staleAfterMinutes}`,
+  );
+}
+
+export function getPendingPayments(staleAfterMinutes = 5, limit = 100) {
+  return apiRequest<ApiPendingPayment[]>(
+    `/api/admin/reconciliation/pending?staleAfterMinutes=${staleAfterMinutes}&limit=${limit}`,
+  );
+}
+
+// ── Admin: Overview ─────────────────────────────────────────
+
+export interface ApiAdminOverview {
+  activeAlertsCount: number;
+  criticalAlertsCount: number;
+  pendingPaymentsCount: number;
+  stuckPaymentsCount: number;
+  openFraudCasesCount: number;
+  generatedAt: string;
+}
+
+export function getAdminOverview() {
+  return apiRequest<ApiAdminOverview>("/api/admin/overview");
+}
+
+// ── Dev: Demo Scenario ──────────────────────────────────────
+
+export function seedDemoScenario() {
+  return apiRequest<{
+    message: string;
+    accounts: number;
+    transactions: number;
+    pendingPayments: number;
+    fraudCases: number;
+  }>("/api/dev/demo-scenario", { method: "POST" });
+}
+

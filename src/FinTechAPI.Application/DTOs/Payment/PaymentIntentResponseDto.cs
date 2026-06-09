@@ -14,3 +14,4 @@ namespace FinTechAPI.Application.DTOs
         public string? FraudEvaluationId { get; set; }
     }
 }
+

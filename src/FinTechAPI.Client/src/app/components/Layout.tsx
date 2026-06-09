@@ -12,6 +12,10 @@ import {
   Shield,
   BarChart3,
   UsersRound,
+  ClipboardList,
+  RefreshCw,
+  Bell,
+  LayoutGrid,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
@@ -39,21 +43,16 @@ export function Layout() {
     { path: "/create-payment", label: "Create payment", icon: PlusCircle },
     { path: "/payouts", label: "Payouts", icon: Wallet },
     { path: "/accounts", label: "Account profiles", icon: FolderOpen },
-    ...(isAdmin
-      ? [
-          { path: "/fraud-cases", label: "Fraud cases", icon: Shield },
-          {
-            path: "/fraud-dashboard",
-            label: "Fraud monitoring",
-            icon: BarChart3,
-          },
-          {
-            path: "/user-management",
-            label: "User management",
-            icon: UsersRound,
-          },
-        ]
-      : []),
+  ];
+
+  const adminNavItems = [
+    { path: "/admin", label: "Admin Panel", icon: LayoutGrid },
+    { path: "/fraud-cases", label: "Fraud cases", icon: Shield },
+    { path: "/fraud-dashboard", label: "Fraud monitoring", icon: BarChart3 },
+    { path: "/admin/reconciliation", label: "Reconciliation", icon: RefreshCw },
+    { path: "/admin/audit-log", label: "Audit Trail", icon: ClipboardList },
+    { path: "/admin/alerts", label: "System Alerts", icon: Bell },
+    { path: "/user-management", label: "User management", icon: UsersRound },
   ];
 
   return (
@@ -67,8 +66,8 @@ export function Layout() {
           </div>
         </div>
 
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
+        <nav className="flex-1 p-4 overflow-y-auto">
+          <ul className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -77,19 +76,53 @@ export function Layout() {
                 <li key={item.path}>
                   <Link
                     to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                       isActive
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm">{item.label}</span>
                   </Link>
                 </li>
               );
             })}
           </ul>
+
+          {/* Admin section */}
+          {isAdmin && (
+            <div className="mt-5 pt-4 border-t border-border">
+              <p className="px-4 mb-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Admin & Ops
+              </p>
+              <ul className="space-y-1">
+                {adminNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive =
+                    item.path === "/admin"
+                      ? location.pathname === "/admin"
+                      : location.pathname.startsWith(item.path);
+
+                  return (
+                    <li key={item.path}>
+                      <Link
+                        to={item.path}
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm">{item.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </nav>
 
         <div className="p-4 border-t border-border">

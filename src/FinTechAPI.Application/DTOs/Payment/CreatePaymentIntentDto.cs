@@ -18,3 +18,4 @@ namespace FinTechAPI.Application.DTOs
         public string? TransactionId { get; set; }
     }
 }
+

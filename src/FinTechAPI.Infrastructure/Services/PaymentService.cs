@@ -502,5 +502,36 @@ namespace FinTechAPI.Infrastructure.Services
                 CreatedAt = document.CreatedAt.ToDateTime(),
                 UpdatedAt = document.UpdatedAt.ToDateTime(),
             };
+
+        public async Task<IReadOnlyList<PendingPaymentDto>> GetPendingPaymentsForAdminAsync(int staleAfterMinutes = 5, int limit = 100)
+        {
+            var cutoff = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(-staleAfterMinutes));
+
+            var snapshot = await _firestore.Payments
+                .WhereLessThan("updatedAt", cutoff)
+                .Limit(limit)
+                .GetSnapshotAsync();
+
+            var now = DateTime.UtcNow;
+
+            return snapshot.Documents
+                .Select(doc => doc.ConvertTo<PaymentDocument>())
+                .Where(p => !TerminalStatuses.Contains(p.Status))
+                .OrderBy(p => p.UpdatedAt)
+                .Select(p => new PendingPaymentDto
+                {
+                    Id = p.Id,
+                    UserId = p.UserId,
+                    Amount = AmountConverter.FromMinorUnits(p.AmountMinorUnits),
+                    Currency = p.Currency,
+                    Status = p.Status,
+                    StripePaymentIntentId = p.StripePaymentIntentId,
+                    LastWebhookEvent = p.LastWebhookEvent,
+                    CreatedAt = p.CreatedAt.ToDateTime(),
+                    UpdatedAt = p.UpdatedAt.ToDateTime(),
+                    StaleMinutes = (int)(now - p.UpdatedAt.ToDateTime()).TotalMinutes
+                })
+                .ToList();
+        }
     }
 }

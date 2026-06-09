@@ -89,3 +89,4 @@ namespace FinTechAPI.Application.DTOs
         public string Message { get; set; } = string.Empty;
     }
 }
+

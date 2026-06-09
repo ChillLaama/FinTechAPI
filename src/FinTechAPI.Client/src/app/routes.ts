@@ -23,6 +23,10 @@ import { FraudCases } from "./components/FraudCases";
 import { FraudCaseDetails } from "./components/FraudCaseDetails";
 import { FraudDashboard } from "./components/FraudDashboard";
 import { UserRoleManager } from "./components/UserRoleManager";
+import { AdminPanel } from "./components/AdminPanel";
+import { AuditLog } from "./components/AuditLog";
+import { ReconciliationCenter } from "./components/ReconciliationCenter";
+import { SystemAlerts } from "./components/SystemAlerts";
 
 export const router = createBrowserRouter([
   {
@@ -47,6 +51,11 @@ export const router = createBrowserRouter([
               { path: "fraud-cases/:caseId", Component: FraudCaseDetails },
               { path: "fraud-dashboard", Component: FraudDashboard },
               { path: "user-management", Component: UserRoleManager },
+              // ── Admin & Ops ──────────────────────────────────────────
+              { path: "admin", Component: AdminPanel },
+              { path: "admin/audit-log", Component: AuditLog },
+              { path: "admin/reconciliation", Component: ReconciliationCenter },
+              { path: "admin/alerts", Component: SystemAlerts },
             ],
           },
         ],

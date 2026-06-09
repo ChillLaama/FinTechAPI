@@ -9,3 +9,4 @@ namespace FinTechAPI.Application.DTOs
         public TransactionStatus Status { get; set; }
     }
 }
+
